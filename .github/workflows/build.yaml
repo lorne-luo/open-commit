@@ -27,7 +27,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          binary_name: gmc
+          binary_name: opencommit
           ldflags: "-w -s"
           # executable_compression: upx
           md5sum: FALSE

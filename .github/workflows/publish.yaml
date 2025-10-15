@@ -7,13 +7,13 @@ on:
       - PKGBUILD
 jobs:
   aur-publish:
-    if: github.repository_owner == 'tfkhdyt'
+    if: github.repository_owner == 'lorne-luo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: KSXGitHub/github-actions-deploy-aur@v2.7.0
         with:
-          pkgname: geminicommit-bin
+          pkgname: opencommit-bin
           pkgbuild: ./PKGBUILD
           commit_username: ${{ secrets.AUR_USERNAME }}
           commit_email: ${{ secrets.AUR_EMAIL }}
