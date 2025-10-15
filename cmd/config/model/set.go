@@ -4,9 +4,26 @@ Copyright © 2024 Taufik Hidayat <tfkhdyt@proton.me>
 package model
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// printConfigFileLocation prints the path where the configuration is saved
+func printConfigFileLocation() {
+	configFile := viper.ConfigFileUsed()
+	if configFile == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			homeDir = os.Getenv("HOME")
+		}
+		configFile = filepath.Join(homeDir, ".config", "opencommit", "config.toml")
+	}
+	fmt.Printf("Configuration saved to: %s\n", configFile)
+}
 
 // setCmd represents the set command
 var setCmd = &cobra.Command{
@@ -17,6 +34,7 @@ var setCmd = &cobra.Command{
 		model := args[0]
 		viper.Set("api.model", model)
 		cobra.CheckErr(viper.WriteConfig())
+		printConfigFileLocation()
 	},
 }
 

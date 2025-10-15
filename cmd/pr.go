@@ -67,5 +67,5 @@ func init() {
 	prCmd.Flags().
 		BoolVar(&draft, "draft", draft, "create a draft pull request")
 	prCmd.Flags().
-		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for Google Gemini Pro API")
+		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for AI API")
 }

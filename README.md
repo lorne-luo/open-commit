@@ -1,19 +1,19 @@
 [![Support Palestine](https://raw.githubusercontent.com/Safouene1/support-palestine-banner/master/banner-project.svg)](https://github.com/Safouene1/support-palestine-banner)
 
-# geminicommit
+# opencommit
 
-**AI-Powered, Conventional Commit Messages with Google Gemini**
+**AI-Powered, Conventional Commit Messages with OpenAI-compatible APIs**
 
 ![Preview](./assets/Screenshot_20241112_103154.png)
 
-**geminicommit** helps you write clear, conventional, and meaningful Git commit messages automatically using Google Gemini AI. Save time, improve your commit history, and focus on what matters—your code.
+**opencommit** helps you write clear, conventional, and meaningful Git commit messages automatically using OpenAI-compatible AI providers. Save time, improve your commit history, and focus on what matters—your code.
 
 ---
 
 ## ✨ Features
 
-- **AI-Generated Commit Messages:** Let Gemini AI analyze your staged changes and suggest concise, descriptive commit messages.
-- **AI-Generated Pull Requests:** Use `gmc pr` to push your branch and open a GitHub pull request with a Gemini-generated conventional title (and body).
+- **AI-Generated Commit Messages:** Let AI analyze your staged changes and suggest concise, descriptive commit messages.
+- **AI-Generated Pull Requests:** Use `opencommit pr` to push your branch and open a GitHub pull request with an AI-generated conventional title (and body).
 - **Customizable Output:** Tailor the message style and structure to fit your workflow.
 - **Conventional Commits:** Ensures messages follow best practices for readability and automation.
 - **Cross-Platform:** Works on Linux, Windows, and macOS.
@@ -21,7 +21,8 @@
 - **Automatic Push:** Push committed changes to remote repository with `--push` flag.
 - **Advanced Customization:** Fine-tune commit messages with various flags and options.
 - **Smart Issue Detection:** Automatically detects and references issue numbers from branch names.
-- **Custom API Endpoints:** Configure custom base URLs for Google Gemini API endpoints.
+- **Multi-Provider Support:** Works with OpenAI, Anthropic, and any OpenAI-compatible API endpoints.
+- **Custom API Endpoints:** Configure custom base URLs for any AI provider.
 
 ---
 
@@ -29,23 +30,24 @@
 
 ```sh
 # 1. Install (Go required)
-go install github.com/tfkhdyt/geminicommit@latest
+go install github.com/lorne-luo/opencommit@latest
 
-# 2. Get your Gemini API key
-#    https://aistudio.google.com/app/apikey
+# 2. Get your AI API key
+#    OpenAI: https://platform.openai.com/api-keys
+#    Anthropic: https://console.anthropic.com/
 
 # 3. Configure your API key
-gmc config key set <your-api-key>
+opencommit config key set <your-api-key>
 
 # 4. (Optional) Configure model and base URL
-gmc config model set gemini-2.5-pro          # optional: change model
-gmc config baseurl set https://your-proxy    # optional: custom endpoint
+opencommit config model set gpt-4o              # optional: change model
+opencommit config baseurl set https://your-proxy # optional: custom endpoint
 
 # 5. Stage your changes
 git add <file>
 
 # 6. Generate and commit
-gmc
+opencommit
 ```
 
 ---
@@ -70,11 +72,11 @@ gmc
     ```
 
   ```sh
-  go install github.com/tfkhdyt/geminicommit@latest
+  go install github.com/lorne-luo/opencommit@latest
   ```
 
 - **Standalone Binary:**
-  Download from the [releases page](https://github.com/tfkhdyt/geminicommit/releases) and move to a directory in your `PATH`:
+  Download from the [releases page](https://github.com/lorne-luo/opencommit/releases) and move to a directory in your `PATH`:
   - Linux: `$HOME/.local/bin/` or `/usr/local/bin/`
   - Windows: `%LocalAppData%\Programs\`
   - macOS: `/usr/local/bin/`
@@ -83,7 +85,7 @@ gmc
 
   ```nix
   environment.systemPackages = [
-    pkgs.geminicommit
+    pkgs.opencommit
   ];
   ```
 
@@ -93,34 +95,38 @@ gmc
 
 ### Basic Setup
 
-1. Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+1. Get your AI API key:
+   - **OpenAI:** [OpenAI Platform](https://platform.openai.com/api-keys)
+   - **Anthropic:** [Anthropic Console](https://console.anthropic.com/)
+   - **Local models:** No API key needed (just set base URL)
 2. Set your key:
 
    ```sh
-   gmc config key set <your-api-key>
+   opencommit config key set <your-api-key>
    ```
 
 ### Advanced Configuration
 
-Configure additional settings using the `gmc config` command:
+Configure additional settings using the `opencommit config` command:
 
 ```sh
-# Set or change the Gemini model (default: gemini-2.5-flash)
-gmc config model set gemini-2.5-pro
-gmc config model show
+# Set or change the AI model (default: gpt-3.5-turbo)
+opencommit config model set gpt-4o
+opencommit config model show
 
-# Set custom API base URL (for proxy servers or custom endpoints)
-gmc config baseurl set https://your-proxy.example.com
-gmc config baseurl show
+# Set custom API base URL (OpenAI, Anthropic, or local endpoints)
+opencommit config baseurl set https://api.anthropic.com  # Anthropic
+opencommit config baseurl set http://localhost:11434     # Local Ollama
+opencommit config baseurl show
 
-# Clear custom base URL (revert to default)
-gmc config baseurl set ""
+# Clear custom base URL (revert to default OpenAI)
+opencommit config baseurl set ""
 
 # View current API key
-gmc config key show
+opencommit config key show
 ```
 
-All configuration is stored in `~/.config/geminicommit/config.toml`.
+All configuration is stored in `~/.config/opencommit/config.toml` (on macOS: `~/Library/Application Support/opencommit/config.toml`).
 
 #### Configuration File Format
 
@@ -129,8 +135,31 @@ The configuration file uses TOML format:
 ```toml
 [api]
 key = "your-api-key"
-model = "gemini-2.5-flash"
-baseurl = "https://your-proxy.example.com"  # optional
+model = "gpt-3.5-turbo"
+baseurl = "https://api.anthropic.com"  # optional - for Anthropic, Ollama, etc.
+```
+
+#### Multi-Provider Examples
+
+**OpenAI:**
+```sh
+opencommit config key set sk-your-openai-key
+opencommit config model set gpt-4o
+# No baseurl needed (uses default Openai endpoint)
+```
+
+**Anthropic:**
+```sh
+opencommit config key set sk-ant-your-anthropic-key
+opencommit config baseurl set https://api.anthropic.com
+opencommit config model set claude-3-sonnet-20240229
+```
+
+**Local Ollama:**
+```sh
+opencommit config baseurl set http://localhost:11434
+opencommit config model set llama3:8b
+# No API key needed for local models
 ```
 
 ---
@@ -146,20 +175,20 @@ baseurl = "https://your-proxy.example.com"  # optional
 2. Run the CLI to generate a commit:
 
    ```sh
-   gmc
+   opencommit
    ```
 
 3. Review and edit the AI-generated message if needed.
-4. geminicommit will commit your changes with the generated message.
+4. opencommit will commit your changes with the generated message.
 
 ### Create Pull Requests
 
-Use Gemini to draft a PR title & body and open a GitHub pull request:
+Use AI to draft a PR title & body and open a GitHub pull request:
 
 ```sh
-gmc pr              # opens a ready-for-review PR
-gmc pr --draft      # create as draft
-gmc pr --dry-run    # preview without pushing
+opencommit pr              # opens a ready-for-review PR
+opencommit pr --draft      # create as draft
+opencommit pr --dry-run    # preview without pushing
 ```
 
 You can combine `--yes -q`, `--show-diff`, `--language`, `--baseurl`, and other flags just like the commit command.
@@ -170,38 +199,38 @@ You can combine `--yes -q`, `--show-diff`, `--language`, `--baseurl`, and other 
 
 ```sh
 # Preview commit without making changes
-gmc --dry-run
+opencommit --dry-run
 
 # Display the diff before committing
-gmc --show-diff
+opencommit --show-diff
 
 # Set maximum commit message length (default: 72 characters)
-gmc --max-length 50
+opencommit --max-length 50
 
 # Generate commit messages in different languages
-gmc --language spanish
-gmc --language french
+opencommit --language spanish
+opencommit --language french
 
 # Reference specific issue numbers
-gmc --issue "#123"
-gmc --issue "JIRA-456"
+opencommit --issue "#123"
+opencommit --issue "JIRA-456"
 
 # Skip git commit-msg hook verification
-gmc --no-verify
+opencommit --no-verify
 
 # Push committed changes to remote repository
-gmc --push
+opencommit --push
 
 # Use custom API endpoint
-gmc --baseurl https://your-proxy.example.com
+opencommit --baseurl https://your-proxy.example.com
 
-# Use specific Gemini model
-gmc --model gemini-1.5-pro
+# Use specific AI model
+opencommit --model gpt-4o
 ```
 
 #### Auto Issue Detection
 
-geminicommit automatically detects issue numbers from branch names using common patterns:
+opencommit automatically detects issue numbers from branch names using common patterns:
 
 - `feature-123-description` → references issue #123
 - `fix-456-bug` → references issue #456
@@ -212,19 +241,19 @@ geminicommit automatically detects issue numbers from branch names using common 
 
 ```sh
 # Comprehensive example: dry run with diff, custom length, and language
-gmc --dry-run --show-diff --max-length 60 --language spanish
+opencommit --dry-run --show-diff --max-length 60 --language spanish
 
 # Production workflow: commit and push with issue reference
-gmc --issue "#123" --push --no-verify
+opencommit --issue "#123" --push --no-verify
 
 # Using custom endpoint with specific model
-gmc --baseurl https://your-proxy.example.com --model gemini-2.5-pro
+opencommit --baseurl https://your-proxy.example.com --model gpt-4o
 ```
 
 For more options:
 
 ```sh
-gmc --help
+opencommit --help
 ```
 
 ---

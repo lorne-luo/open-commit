@@ -14,8 +14,8 @@ import (
 // ConfigCmd represents the config command
 var ConfigCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Manage geminicommit configuration through cli",
-	Long:  `Manage geminicommit configuration through cli`,
+	Short: "Manage opencommit configuration through cli",
+	Long:  `Manage opencommit configuration through cli`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Println("config called")
 	},

@@ -70,7 +70,7 @@ func (r *RootHandler) RootCommand(
 				"Error: API key is still empty, run this command to set your API key",
 			)
 			fmt.Print("\n")
-			color.New(color.Bold).Print("geminicommit config key set ")
+			color.New(color.Bold).Print("opencommit config key set ")
 			color.New(color.Italic, color.Bold).Print("your_api_key\n\n")
 			os.Exit(1)
 		}

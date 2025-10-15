@@ -37,9 +37,9 @@ var (
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:     "gmc",
-	Short:   "CLI that writes your git commit messages for you with Google Gemini AI",
-	Long:    "CLI that writes your git commit messages for you with Google Gemini AI",
+	Use:     "opencommit",
+	Short:   "CLI that writes your git commit messages for you with AI",
+	Long:    "CLI that writes your git commit messages for you with AI",
 	Version: "0.5.0",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -79,7 +79,7 @@ func init() {
 	// will be global for your application.
 
 	RootCmd.PersistentFlags().
-		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/geminicommit/config.toml)")
+		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/opencommit/config.toml)")
 	RootCmd.Flags().
 		BoolVarP(&stageAll, "all", "a", stageAll, "stage all changes in tracked files")
 	RootCmd.Flags().
@@ -105,7 +105,7 @@ func init() {
 	RootCmd.Flags().
 		BoolVarP(&noVerify, "no-verify", "", noVerify, "skip git commit-msg hook verification")
 	RootCmd.Flags().
-		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for Google Gemini Pro API")
+		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for AI API")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -117,7 +117,7 @@ func initConfig() {
 		// Find config directory.
 		config, err := os.UserConfigDir()
 		cobra.CheckErr(err)
-		configDirPath := filepath.Join(config, "geminicommit")
+		configDirPath := filepath.Join(config, "opencommit")
 		configFilePath := filepath.Join(configDirPath, "config.toml")
 
 		viper.AddConfigPath(configDirPath)
@@ -142,7 +142,7 @@ func createConfig() {
 	// Create the directory and file paths.
 	config, err := os.UserConfigDir()
 	cobra.CheckErr(err)
-	configDirPath := filepath.Join(config, "geminicommit")
+	configDirPath := filepath.Join(config, "opencommit")
 	configFilePath := filepath.Join(configDirPath, "config.toml")
 
 	// Create the directory if it does not exist.
