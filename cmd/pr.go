@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tfkhdyt/geminicommit/internal/delivery/cli/handler"
-	"github.com/tfkhdyt/geminicommit/internal/service"
+	"github.com/lorne-luo/opencommit/internal/delivery/cli/handler"
+	"github.com/lorne-luo/opencommit/internal/service"
 )
 
 var (

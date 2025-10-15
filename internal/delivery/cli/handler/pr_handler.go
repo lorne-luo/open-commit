@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/tfkhdyt/geminicommit/internal/service"
-	"github.com/tfkhdyt/geminicommit/internal/usecase"
+	"github.com/lorne-luo/opencommit/internal/service"
+	"github.com/lorne-luo/opencommit/internal/usecase"
 )
 
 type PRHandler struct {
