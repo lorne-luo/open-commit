@@ -5,19 +5,17 @@ package usecase
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"sync"
 
 	"github.com/fatih/color"
-	"google.golang.org/genai"
+	"github.com/sashabaranov/go-openai"
 
 	"github.com/tfkhdyt/geminicommit/internal/service"
 )
 
 type PRUsecase struct {
 	gitService         *service.GitService
-	geminiService      *service.GeminiService
+	aiService         *service.AIService
 	interactionService *service.InteractionService
 }
 
@@ -29,12 +27,12 @@ var (
 func NewPRUsecase() *PRUsecase {
 	prUsecaseOnce.Do(func() {
 		gitService := service.NewGitService()
-		geminiService := service.NewGeminiService()
+		aiService := service.NewAIService()
 		interactionService := service.NewInteractionService()
 
 		prUsecaseInstance = &PRUsecase{
 			gitService:         gitService,
-			geminiService:      geminiService,
+			aiService:         aiService,
 			interactionService: interactionService,
 		}
 	})
@@ -42,29 +40,17 @@ func NewPRUsecase() *PRUsecase {
 	return prUsecaseInstance
 }
 
-func (p *PRUsecase) initializeGeminiClient(
+func (p *PRUsecase) initializeAIClient(
 	ctx context.Context,
 	apiKey string,
 	customBaseUrl *string,
-) (*genai.Client, error) {
-	baseUrl := ""
-	if customBaseUrl != nil {
-		baseUrl = *customBaseUrl
+) *openai.Client {
+	config := openai.DefaultConfig(apiKey)
+	if customBaseUrl != nil && *customBaseUrl != "" {
+		config.BaseURL = *customBaseUrl
 	}
-	client, err := genai.NewClient(
-		ctx,
-		&genai.ClientConfig{
-			APIKey:  apiKey,
-			Backend: genai.BackendGeminiAPI,
-			HTTPOptions: genai.HTTPOptions{
-				BaseURL: baseUrl,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error getting gemini client: %v", err)
-	}
-	return client, nil
+	client := openai.NewClientWithConfig(config)
+	return client
 }
 
 func (p *PRUsecase) PRCommand(
@@ -81,11 +67,7 @@ func (p *PRUsecase) PRCommand(
 	draft *bool,
 	customBaseUrl *string,
 ) error {
-	client, err := p.initializeGeminiClient(ctx, apiKey, customBaseUrl)
-	if err != nil {
-		fmt.Printf("Error getting gemini client: %v", err)
-		os.Exit(1)
-	}
+	client := p.initializeAIClient(ctx, apiKey, customBaseUrl)
 
 	if err := p.gitService.VerifyGitInstallation(); err != nil {
 		return err
@@ -116,7 +98,7 @@ func (p *PRUsecase) PRCommand(
 	}
 
 	for {
-		message, err := p.geminiService.GenerateCommitMessage(client, ctx, data, opts)
+		message, err := p.aiService.GenerateCommitMessage(client, ctx, data, opts)
 		if err != nil {
 			return err
 		}

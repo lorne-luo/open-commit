@@ -9,12 +9,7 @@ import (
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/fatih/color"
-	"google.golang.org/genai"
-)
-
-const (
-	Gemini3ProPreview   = "gemini-3-pro-preview"
-	Gemini3FlashPreview = "gemini-3-flash-preview"
+	"github.com/sashabaranov/go-openai"
 )
 
 //go:embed system_prompt.md
@@ -26,7 +21,7 @@ var fileSelectionPrompt string
 //go:embed combined_prompt.md
 var combinedPrompt string
 
-type GeminiService struct {
+type AIService struct {
 	systemPrompt string
 }
 
@@ -66,30 +61,23 @@ type SelectFilesAndGenerateCommitOptions struct {
 }
 
 var (
-	geminiService *GeminiService
-	geminiOnce    sync.Once
+	aiService *AIService
+	aiOnce    sync.Once
 )
 
-func NewGeminiService() *GeminiService {
-	geminiOnce.Do(func() {
-		geminiService = &GeminiService{
+func NewAIService() *AIService {
+	aiOnce.Do(func() {
+		aiService = &AIService{
 			systemPrompt: systemPrompt,
 		}
 	})
 
-	return geminiService
-}
-
-func (g *GeminiService) getModelTemperature(modelName string) float32 {
-	if modelName == Gemini3ProPreview || modelName == Gemini3FlashPreview {
-		return 1.0
-	}
-	return 0.2
+	return aiService
 }
 
 // GenerateCommitMessage creates a commit message using AI analysis with UI feedback
-func (g *GeminiService) GenerateCommitMessage(
-	client *genai.Client,
+func (a *AIService) GenerateCommitMessage(
+	client *openai.Client,
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
@@ -100,13 +88,13 @@ func (g *GeminiService) GenerateCommitMessage(
 		if err := spinner.New().
 			Title(fmt.Sprintf("AI is analyzing your changes. (Model: %s)", *opts.Model)).
 			Action(func() {
-				g.analyzeToChannel(client, ctx, data, opts, messageChan)
+				a.analyzeToChannel(client, ctx, data, opts, messageChan)
 			}).
 			Run(); err != nil {
 			return "", err
 		}
 	} else {
-		g.analyzeToChannel(client, ctx, data, opts, messageChan)
+		a.analyzeToChannel(client, ctx, data, opts, messageChan)
 	}
 
 	message := <-messageChan
@@ -124,14 +112,14 @@ func (g *GeminiService) GenerateCommitMessage(
 }
 
 // analyzeToChannel performs the actual AI analysis and sends result to channel
-func (g *GeminiService) analyzeToChannel(
-	client *genai.Client,
+func (a *AIService) analyzeToChannel(
+	client *openai.Client,
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
 	messageChan chan string,
 ) {
-	message, err := g.AnalyzeChanges(
+	message, err := a.AnalyzeChanges(
 		client,
 		ctx,
 		data.Diff,
@@ -149,14 +137,13 @@ func (g *GeminiService) analyzeToChannel(
 	}
 }
 
-func (g *GeminiService) GetUserPrompt(
+func (a *AIService) GetUserPrompt(
 	context *string,
 	diff string,
 	files []string,
 	maxLength *int,
 	language *string,
 	issue *string,
-	// lastCommits []string,
 ) (string, error) {
 	if *context != "" {
 		temp := fmt.Sprintf("Use the following context to understand intent: %s", *context)
@@ -201,8 +188,54 @@ func formatRelatedFiles(dirToFiles map[string]string) []string {
 	return relatedFilesArray
 }
 
-func (g *GeminiService) AnalyzeChanges(
-	geminiClient *genai.Client,
+// chatComplete calls the OpenAI chat completion API with retry and returns the trimmed text.
+func chatComplete(
+	client *openai.Client,
+	ctx context.Context,
+	model string,
+	systemPrompt string,
+	userPrompt string,
+) (string, error) {
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model: model,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: systemPrompt,
+				},
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: userPrompt,
+				},
+			},
+			Temperature: 0.2,
+			MaxTokens:   1000,
+		})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if len(resp.Choices) == 0 {
+			lastErr = fmt.Errorf("no response from AI model")
+			continue
+		}
+		text := strings.TrimSpace(resp.Choices[0].Message.Content)
+		if text == "" {
+			lastErr = fmt.Errorf("empty response text from model")
+			continue
+		}
+		return text, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("failed to get response from AI model")
+	}
+	return "", lastErr
+}
+
+func (a *AIService) AnalyzeChanges(
+	openaiClient *openai.Client,
 	ctx context.Context,
 	diff string,
 	userContext *string,
@@ -211,18 +244,15 @@ func (g *GeminiService) AnalyzeChanges(
 	maxLength *int,
 	language *string,
 	issue *string,
-	// lastCommits []string,
 ) (string, error) {
-	// format relatedFiles to be dir : files
 	relatedFilesArray := formatRelatedFiles(*relatedFiles)
 
-	userPrompt, err := g.GetUserPrompt(userContext, diff, relatedFilesArray, maxLength, language, issue)
+	userPrompt, err := a.GetUserPrompt(userContext, diff, relatedFilesArray, maxLength, language, issue)
 	if err != nil {
 		return "", err
 	}
 
-	// Update system prompt to include language and length requirements
-	enhancedSystemPrompt := g.systemPrompt
+	enhancedSystemPrompt := a.systemPrompt
 	if *language != "english" {
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Generate the commit message in %s language.", *language)
 	}
@@ -231,78 +261,9 @@ func (g *GeminiService) AnalyzeChanges(
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Reference issue %s in the commit message.", *issue)
 	}
 
-	temp := g.getModelTemperature(*modelName)
-	var result string
-	for attempt := range 2 {
-		resp, err := geminiClient.Models.GenerateContent(ctx, *modelName, genai.Text(userPrompt), &genai.GenerateContentConfig{
-			Temperature: &temp,
-			SafetySettings: []*genai.SafetySetting{
-				{
-					Category:  genai.HarmCategoryHarassment,
-					Threshold: genai.HarmBlockThresholdBlockNone,
-				},
-				{
-					Category:  genai.HarmCategoryHateSpeech,
-					Threshold: genai.HarmBlockThresholdBlockNone,
-				},
-				{
-					Category:  genai.HarmCategoryDangerousContent,
-					Threshold: genai.HarmBlockThresholdBlockNone,
-				},
-				{
-					Category:  genai.HarmCategorySexuallyExplicit,
-					Threshold: genai.HarmBlockThresholdBlockNone,
-				},
-			},
-			SystemInstruction: &genai.Content{
-				Role:  genai.RoleUser,
-				Parts: []*genai.Part{{Text: enhancedSystemPrompt}},
-			},
-		})
-		if err != nil {
-			if attempt == 1 {
-				return "", err
-			}
-			continue
-		}
-		if resp == nil {
-			if attempt == 1 {
-				return "", fmt.Errorf("empty response from model")
-			}
-			continue
-		}
-		if len(resp.Candidates) == 0 {
-			if attempt == 1 {
-				return "", fmt.Errorf("empty response candidates from model")
-			}
-			continue
-		}
-		if resp.Candidates[0].Content == nil {
-			if attempt == 1 {
-				return "", fmt.Errorf("empty response content from model")
-			}
-			continue
-		}
-		if len(resp.Candidates[0].Content.Parts) == 0 {
-			if attempt == 1 {
-				return "", fmt.Errorf("empty response parts from model")
-			}
-			continue
-		}
-		if resp.Candidates[0].Content.Parts[0] == nil {
-			if attempt == 1 {
-				return "", fmt.Errorf("empty response part from model")
-			}
-			continue
-		}
-		result = resp.Candidates[0].Content.Parts[0].Text
-		if strings.TrimSpace(result) == "" {
-			if attempt == 1 {
-				return "", fmt.Errorf("empty response text from model")
-			}
-			continue
-		}
-		break
+	result, err := chatComplete(openaiClient, ctx, *modelName, enhancedSystemPrompt, userPrompt)
+	if err != nil {
+		return "", err
 	}
 
 	result = strings.ReplaceAll(result, "```", "")
@@ -312,8 +273,8 @@ func (g *GeminiService) AnalyzeChanges(
 }
 
 // SelectFilesUsingAI lets the AI determine which files to stage based on the diff and context
-func (g *GeminiService) SelectFilesUsingAI(
-	geminiClient *genai.Client,
+func (a *AIService) SelectFilesUsingAI(
+	openaiClient *openai.Client,
 	ctx context.Context,
 	diff string,
 	userContext *string,
@@ -327,47 +288,16 @@ Here's the code diff:
 		diff,
 	)
 
-	enhancedSystemPrompt := fileSelectionPrompt
-
-	temp := g.getModelTemperature(*modelName)
-	resp, err := geminiClient.Models.GenerateContent(ctx, *modelName, genai.Text(prompt), &genai.GenerateContentConfig{
-		Temperature: &temp,
-		SafetySettings: []*genai.SafetySetting{
-			{
-				Category:  genai.HarmCategoryHarassment,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategoryHateSpeech,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategoryDangerousContent,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategorySexuallyExplicit,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-		},
-		SystemInstruction: &genai.Content{
-			Role:  genai.RoleModel,
-			Parts: []*genai.Part{{Text: enhancedSystemPrompt}},
-		},
-	})
+	result, err := chatComplete(openaiClient, ctx, *modelName, fileSelectionPrompt, prompt)
 	if err != nil {
 		return nil, err
 	}
 
-	result := strings.TrimSpace(resp.Candidates[0].Content.Parts[0].Text)
-
-	// Look for the file list in the response with more flexible matching
+	// Look for the file list in the response with flexible matching
 	var filesStr string
 	if after, ok := strings.CutPrefix(result, "FILES:"); ok {
-		// Direct match
 		filesStr = after
 	} else {
-		// Try to find "FILES: ..." anywhere in the response
 		lines := strings.Split(result, "\n")
 		for _, line := range lines {
 			trimmedLine := strings.TrimSpace(line)
@@ -377,13 +307,9 @@ Here's the code diff:
 			}
 		}
 
-		// If still not found, try to find any line that starts with a file path pattern
 		if filesStr == "" {
-			// Try to find pattern like: file1, file2, file3 or list of individual files
-			// Look for common patterns in the response
 			if idx := strings.Index(result, ":"); idx != -1 {
 				potential := result[idx+1:]
-				// Check if this contains common file extensions or paths
 				if strings.Contains(potential, ".") || strings.Contains(potential, "/") || strings.Contains(potential, ",") {
 					filesStr = potential
 				}
@@ -395,15 +321,12 @@ Here's the code diff:
 		return nil, fmt.Errorf("AI response did not include file list in expected format. Response was: %s", result)
 	}
 
-	// Parse the file list
 	files := strings.Split(filesStr, ",")
 	for i, f := range files {
-		// Remove any markdown formatting like backticks
 		f = strings.Trim(f, "` \t\n\r")
 		files[i] = strings.TrimSpace(f)
 	}
 
-	// Filter out empty strings
 	var validFiles []string
 	for _, f := range files {
 		if f != "" {
@@ -415,13 +338,12 @@ Here's the code diff:
 }
 
 // SelectFilesAndGenerateCommit combines file selection and commit message generation in a single AI request
-func (g *GeminiService) SelectFilesAndGenerateCommit(
-	geminiClient *genai.Client,
+func (a *AIService) SelectFilesAndGenerateCommit(
+	openaiClient *openai.Client,
 	ctx context.Context,
 	diff string,
 	opts *SelectFilesAndGenerateCommitOptions,
 ) ([]string, string, error) {
-	// Validate required parameters
 	if opts == nil {
 		return nil, "", fmt.Errorf("options cannot be nil")
 	}
@@ -438,10 +360,8 @@ func (g *GeminiService) SelectFilesAndGenerateCommit(
 		return nil, "", fmt.Errorf("RelatedFiles cannot be nil")
 	}
 
-	// Format relatedFiles to be dir : files
 	relatedFilesArray := formatRelatedFiles(*opts.RelatedFiles)
 
-	// Build user prompt with context, diff, and requirements
 	contextStr := ""
 	if opts.UserContext != nil && *opts.UserContext != "" {
 		contextStr = fmt.Sprintf("Use the following context to understand intent: %s\n\n", *opts.UserContext)
@@ -468,7 +388,6 @@ Requirements:
 		prompt += fmt.Sprintf("\n- Reference issue: %s", *opts.Issue)
 	}
 
-	// Build enhanced system prompt
 	enhancedSystemPrompt := combinedPrompt
 	if *opts.Language != "english" {
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Generate the commit message in %s language.", *opts.Language)
@@ -478,57 +397,10 @@ Requirements:
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Reference issue %s in the commit message.", *opts.Issue)
 	}
 
-	temp := g.getModelTemperature(*opts.ModelName)
-	resp, err := geminiClient.Models.GenerateContent(ctx, *opts.ModelName, genai.Text(prompt), &genai.GenerateContentConfig{
-		Temperature: &temp,
-		SafetySettings: []*genai.SafetySetting{
-			{
-				Category:  genai.HarmCategoryHarassment,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategoryHateSpeech,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategoryDangerousContent,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategorySexuallyExplicit,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-		},
-		SystemInstruction: &genai.Content{
-			Role:  genai.RoleModel,
-			Parts: []*genai.Part{{Text: enhancedSystemPrompt}},
-		},
-	})
+	result, err := chatComplete(openaiClient, ctx, *opts.ModelName, enhancedSystemPrompt, prompt)
 	if err != nil {
 		return nil, "", err
 	}
-
-	// Defensive checks to prevent panics
-	if resp == nil {
-		return nil, "", fmt.Errorf("API response is nil")
-	}
-	if len(resp.Candidates) == 0 {
-		return nil, "", fmt.Errorf("API response contains no candidates")
-	}
-	if resp.Candidates[0].Content == nil {
-		return nil, "", fmt.Errorf("API response candidate content is nil")
-	}
-	if len(resp.Candidates[0].Content.Parts) == 0 {
-		return nil, "", fmt.Errorf("API response candidate content contains no parts")
-	}
-	if resp.Candidates[0].Content.Parts[0] == nil {
-		return nil, "", fmt.Errorf("API response candidate part is nil")
-	}
-	if resp.Candidates[0].Content.Parts[0].Text == "" {
-		return nil, "", fmt.Errorf("API response candidate part text is empty")
-	}
-
-	result := strings.TrimSpace(resp.Candidates[0].Content.Parts[0].Text)
 
 	// Parse files from response
 	var filesStr string
@@ -539,10 +411,8 @@ Requirements:
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// Check if this line starts the FILES section
 		if strings.HasPrefix(trimmedLine, "FILES:") {
 			foundFilesSection = true
-			// Extract the part after "FILES:"
 			afterPrefix := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "FILES:"))
 			if afterPrefix != "" {
 				filesLines = append(filesLines, afterPrefix)
@@ -550,9 +420,7 @@ Requirements:
 			continue
 		}
 
-		// If we're in the files section, collect lines until we hit COMMIT_MESSAGE
 		if foundFilesSection {
-			// Stop if we hit COMMIT_MESSAGE section
 			if strings.HasPrefix(trimmedLine, "COMMIT_MESSAGE:") {
 				break
 			}
@@ -563,9 +431,7 @@ Requirements:
 	if len(filesLines) > 0 {
 		filesStr = strings.TrimSpace(strings.Join(filesLines, " "))
 	} else {
-		// Fallback: try to find files using the old method
 		if after, ok := strings.CutPrefix(result, "FILES:"); ok {
-			// Stop at COMMIT_MESSAGE if present
 			if idx := strings.Index(after, "COMMIT_MESSAGE:"); idx != -1 {
 				filesStr = strings.TrimSpace(after[:idx])
 			} else {
@@ -578,14 +444,12 @@ Requirements:
 		return nil, "", fmt.Errorf("AI response did not include file list in expected format. Response was: %s", result)
 	}
 
-	// Parse the file list
 	files := strings.Split(filesStr, ",")
 	for i, f := range files {
 		f = strings.Trim(f, "` \t\n\r")
 		files[i] = strings.TrimSpace(f)
 	}
 
-	// Filter out empty strings
 	var validFiles []string
 	for _, f := range files {
 		if f != "" {
@@ -601,10 +465,8 @@ Requirements:
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// Check if this line starts the COMMIT_MESSAGE section
 		if strings.HasPrefix(trimmedLine, "COMMIT_MESSAGE:") {
 			foundCommitSection = true
-			// Extract the part after "COMMIT_MESSAGE:"
 			afterPrefix := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "COMMIT_MESSAGE:"))
 			if afterPrefix != "" {
 				commitLines = append(commitLines, afterPrefix)
@@ -612,20 +474,16 @@ Requirements:
 			continue
 		}
 
-		// If we're in the commit message section, collect lines
 		if foundCommitSection {
-			// Stop if we hit another section marker (like FILES:)
 			if strings.HasPrefix(trimmedLine, "FILES:") {
 				break
 			}
-			// Collect the line (preserve empty lines for commit message formatting)
 			commitLines = append(commitLines, line)
 		}
 	}
 
 	if len(commitLines) > 0 {
 		commitMessage = strings.Join(commitLines, "\n")
-		// Remove any markdown code blocks
 		commitMessage = strings.ReplaceAll(commitMessage, "```", "")
 		commitMessage = strings.TrimSpace(commitMessage)
 	}

@@ -3,19 +3,18 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/fatih/color"
-	"google.golang.org/genai"
+	"github.com/sashabaranov/go-openai"
 
 	"github.com/tfkhdyt/geminicommit/internal/service"
 )
 
 type RootUsecase struct {
 	gitService         *service.GitService
-	geminiService      *service.GeminiService
+	aiService          *service.AIService
 	interactionService *service.InteractionService
 }
 
@@ -27,12 +26,12 @@ var (
 func NewRootUsecase() *RootUsecase {
 	rootUsecaseOnce.Do(func() {
 		gitService := service.NewGitService()
-		geminiService := service.NewGeminiService()
+		aiService := service.NewAIService()
 		interactionService := service.NewInteractionService()
 
 		rootUsecaseInstance = &RootUsecase{
 			gitService:         gitService,
-			geminiService:      geminiService,
+			aiService:          aiService,
 			interactionService: interactionService,
 		}
 	})
@@ -40,25 +39,12 @@ func NewRootUsecase() *RootUsecase {
 	return rootUsecaseInstance
 }
 
-func (r *RootUsecase) initializeGeminiClient(ctx context.Context, apiKey string, customBaseUrl *string) (*genai.Client, error) {
-	baseUrl := ""
-	if customBaseUrl != nil {
-		baseUrl = *customBaseUrl
+func (r *RootUsecase) initializeAIClient(ctx context.Context, apiKey string, customBaseUrl *string) *openai.Client {
+	config := openai.DefaultConfig(apiKey)
+	if customBaseUrl != nil && *customBaseUrl != "" {
+		config.BaseURL = *customBaseUrl
 	}
-	client, err := genai.NewClient(
-		ctx,
-		&genai.ClientConfig{
-			APIKey:  apiKey,
-			Backend: genai.BackendGeminiAPI,
-			HTTPOptions: genai.HTTPOptions{
-				BaseURL: baseUrl,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error getting gemini client: %v", err)
-	}
-	return client, nil
+	return openai.NewClientWithConfig(config)
 }
 
 func (r *RootUsecase) RootCommand(
@@ -79,12 +65,8 @@ func (r *RootUsecase) RootCommand(
 	noVerify *bool,
 	customBaseUrl *string,
 ) error {
-	// Initialize Gemini client
-	client, err := r.initializeGeminiClient(ctx, apiKey, customBaseUrl)
-	if err != nil {
-		fmt.Printf("Error getting gemini client: %v", err)
-		os.Exit(1)
-	}
+	// Initialize AI client
+	client := r.initializeAIClient(ctx, apiKey, customBaseUrl)
 
 	// Perform git verifications
 	if err := r.gitService.VerifyGitInstallation(); err != nil {
@@ -136,16 +118,14 @@ func (r *RootUsecase) RootCommand(
 		if err != nil {
 			return err
 		}
-		data = autoResult.Data // Update data with confirmed files
+		data = autoResult.Data
 		initialCommitMessage = autoResult.CommitMessage
 
-		// In auto mode, we need to stage only the selected files for the commit
-		// First, unstage everything
+		// In auto mode, stage only the selected files for the commit
 		if err := r.gitService.ResetStaged(); err != nil {
 			return fmt.Errorf("failed to reset staged files: %v", err)
 		}
 
-		// Then stage only the selected files
 		if err := r.gitService.StageFiles(data.Files); err != nil {
 			return fmt.Errorf("failed to stage selected files: %v", err)
 		}
@@ -154,10 +134,9 @@ func (r *RootUsecase) RootCommand(
 	// Main generation loop
 	message := initialCommitMessage
 	for {
-		// If we don't have a message yet (non-auto mode) or user wants to regenerate, generate one
 		if message == "" {
 			var err error
-			message, err = r.geminiService.GenerateCommitMessage(client, ctx, data, opts)
+			message, err = r.aiService.GenerateCommitMessage(client, ctx, data, opts)
 			if err != nil {
 				return err
 			}
@@ -175,10 +154,10 @@ func (r *RootUsecase) RootCommand(
 			}
 			return nil
 		case service.ActionRegenerate:
-			message = "" // Clear message to regenerate
+			message = ""
 			continue
 		case service.ActionEditContext:
-			message = "" // Clear message to regenerate with new context
+			message = ""
 			continue
 		case service.ActionCancel:
 			color.New(color.FgRed).Println("Commit cancelled")
@@ -195,14 +174,11 @@ type AutoFlowResult struct {
 
 // handleAutoFlow implements the complete auto flow as per the flowchart
 func (r *RootUsecase) handleAutoFlow(
-	client *genai.Client,
+	client *openai.Client,
 	ctx context.Context,
 	data *service.PreCommitData,
 	opts *service.CommitOptions,
 ) (*AutoFlowResult, error) {
-	// Step 1: Detect all changes in working directory (already done in calling function)
-	// Step 2: Send diff to AI for file selection AND commit message generation
-	// Extract common logic into a closure that captures client, ctx, data, and opts
 	selectFilesAndGenerateCommit := func() ([]string, string, error) {
 		selectOpts := &service.SelectFilesAndGenerateCommitOptions{
 			UserContext:  opts.UserContext,
@@ -212,7 +188,7 @@ func (r *RootUsecase) handleAutoFlow(
 			Language:     opts.Language,
 			Issue:        &data.Issue,
 		}
-		selectedFiles, commitMessage, err := r.geminiService.SelectFilesAndGenerateCommit(
+		selectedFiles, commitMessage, err := r.aiService.SelectFilesAndGenerateCommit(
 			client,
 			ctx,
 			data.Diff,
@@ -248,23 +224,19 @@ func (r *RootUsecase) handleAutoFlow(
 		}
 	}
 
-	// Step 3: Show selected files to user and get their choice
 	action, confirmedFiles, err := r.interactionService.ConfirmAutoSelectedFiles(selectedFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	// Step 4: Handle user choice
 	switch action {
 	case service.ActionCancel:
 		return nil, fmt.Errorf("operation cancelled")
 	case service.ActionEdit:
-		// Open file list editor
 		editedFiles, err := r.interactionService.EditFileList(selectedFiles)
 		if err != nil {
 			return nil, err
 		}
-		// Update data with edited files
 		newData := *data
 		newData.Files = editedFiles
 		return &AutoFlowResult{
@@ -272,7 +244,6 @@ func (r *RootUsecase) handleAutoFlow(
 			CommitMessage: commitMessage,
 		}, nil
 	case service.ActionConfirm, service.ActionAutoSelect:
-		// Proceed with selected files
 		newData := *data
 		newData.Files = confirmedFiles
 		return &AutoFlowResult{
