@@ -38,12 +38,11 @@ var (
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:     "gmc",
-	Short:   "CLI that writes your git commit messages for you with Google Gemini AI",
-	Long:    "CLI that writes your git commit messages for you with Google Gemini AI",
+	Use:     "opencommit",
+	Short:   "CLI that writes your git commit messages for you with AI",
+	Long:    "CLI that writes your git commit messages for you with AI",
 	Version: "0.7.0",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Apply config values to variables if flags are not explicitly set
 		applyConfigDefaults(cmd)
 	},
 	// Uncomment the following line if your bare application
@@ -85,7 +84,7 @@ func init() {
 	// will be global for your application.
 
 	RootCmd.PersistentFlags().
-		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/geminicommit/config.toml)")
+		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/opencommit/config.toml)")
 	RootCmd.Flags().
 		BoolVarP(&stageAll, "all", "a", stageAll, "stage all changes in tracked files")
 	RootCmd.Flags().
@@ -113,7 +112,7 @@ func init() {
 	RootCmd.Flags().
 		BoolVarP(&noVerify, "no-verify", "", noVerify, "skip git commit-msg hook verification")
 	RootCmd.Flags().
-		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for Google Gemini Pro API")
+		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for AI API")
 
 	// Bind flags to viper config keys
 	// [api]
@@ -187,7 +186,7 @@ func initConfig() {
 		// Find config directory.
 		config, err := os.UserConfigDir()
 		cobra.CheckErr(err)
-		configDirPath := filepath.Join(config, "geminicommit")
+		configDirPath := filepath.Join(config, "opencommit")
 		configFilePath := filepath.Join(configDirPath, "config.toml")
 
 		viper.AddConfigPath(configDirPath)
@@ -212,7 +211,7 @@ func createConfig() {
 	// Create the directory and file paths.
 	config, err := os.UserConfigDir()
 	cobra.CheckErr(err)
-	configDirPath := filepath.Join(config, "geminicommit")
+	configDirPath := filepath.Join(config, "opencommit")
 	configFilePath := filepath.Join(configDirPath, "config.toml")
 
 	// Create the directory if it does not exist.
