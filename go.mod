@@ -1,4 +1,4 @@
-module github.com/tfkhdyt/geminicommit
+module github.com/lorne-luo/opencommit
 
 go 1.23.0
 
