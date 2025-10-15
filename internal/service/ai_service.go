@@ -212,7 +212,7 @@ func (a *AIService) AnalyzeChanges(
 	})
 	if err != nil {
 		fmt.Println("Error:", err)
-		return "", nil
+		return "", err
 	}
 
 	if len(resp.Choices) == 0 {
