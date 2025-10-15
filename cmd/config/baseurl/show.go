@@ -13,8 +13,8 @@ import (
 // showCmd represents the show command
 var showCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show currently configured custom base URL for Google Gemini API",
-	Long:  `Show currently configured custom base URL for Google Gemini API`,
+	Short: "Show currently configured custom base URL for AI API",
+	Long:  `Show currently configured custom base URL for AI API`,
 	Run: func(cmd *cobra.Command, args []string) {
 		baseUrl := viper.GetString("api.baseurl")
 		if baseUrl == "" {

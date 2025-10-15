@@ -13,8 +13,8 @@ import (
 // showCmd represents the set command
 var showCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show currently used Google Gemini model",
-	Long:  `Show currently used Google Gemini model`,
+	Short: "Show currently used AI model",
+	Long:  `Show currently used AI model`,
 	Run: func(cmd *cobra.Command, args []string) {
 		model := viper.GetString("api.model")
 		fmt.Println(model)

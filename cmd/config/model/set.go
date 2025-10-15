@@ -11,8 +11,8 @@ import (
 // setCmd represents the set command
 var setCmd = &cobra.Command{
 	Use:   "set {model_name}",
-	Short: "Set Google Gemini model",
-	Long:  `Set Google Gemini model`,
+	Short: "Set AI model",
+	Long:  `Set AI model`,
 	Run: func(cmd *cobra.Command, args []string) {
 		model := args[0]
 		viper.Set("api.model", model)

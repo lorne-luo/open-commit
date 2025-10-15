@@ -1,6 +1,6 @@
 package service
 
 var (
-	DefaultModel   = "gemini-2.5-flash"
+	DefaultModel   = "gpt-3.5-turbo"
 	DefaultBaseUrl = ""
 )

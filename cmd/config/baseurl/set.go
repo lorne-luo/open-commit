@@ -11,8 +11,8 @@ import (
 // setCmd represents the set command
 var setCmd = &cobra.Command{
 	Use:   "set {base_url}",
-	Short: "Set custom base URL for Google Gemini API",
-	Long:  `Set custom base URL for Google Gemini API`,
+	Short: "Set custom base URL for AI API",
+	Long:  `Set custom base URL for AI API`,
 	Run: func(cmd *cobra.Command, args []string) {
 		baseUrl := args[0]
 		viper.Set("api.baseurl", baseUrl)

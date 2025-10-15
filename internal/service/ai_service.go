@@ -9,13 +9,13 @@ import (
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/fatih/color"
-	"google.golang.org/genai"
+	"github.com/sashabaranov/go-openai"
 )
 
 //go:embed system_prompt.md
 var systemPrompt string
 
-type GeminiService struct {
+type AIService struct {
 	systemPrompt string
 }
 
@@ -44,23 +44,23 @@ type PreCommitData struct {
 }
 
 var (
-	geminiService *GeminiService
-	geminiOnce    sync.Once
+	aiService *AIService
+	aiOnce    sync.Once
 )
 
-func NewGeminiService() *GeminiService {
-	geminiOnce.Do(func() {
-		geminiService = &GeminiService{
+func NewAIService() *AIService {
+	aiOnce.Do(func() {
+		aiService = &AIService{
 			systemPrompt: systemPrompt,
 		}
 	})
 
-	return geminiService
+	return aiService
 }
 
 // GenerateCommitMessage creates a commit message using AI analysis with UI feedback
-func (g *GeminiService) GenerateCommitMessage(
-	client *genai.Client,
+func (a *AIService) GenerateCommitMessage(
+	client *openai.Client,
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
@@ -71,13 +71,13 @@ func (g *GeminiService) GenerateCommitMessage(
 		if err := spinner.New().
 			Title(fmt.Sprintf("AI is analyzing your changes. (Model: %s)", *opts.Model)).
 			Action(func() {
-				g.analyzeToChannel(client, ctx, data, opts, messageChan)
+				a.analyzeToChannel(client, ctx, data, opts, messageChan)
 			}).
 			Run(); err != nil {
 			return "", err
 		}
 	} else {
-		g.analyzeToChannel(client, ctx, data, opts, messageChan)
+		a.analyzeToChannel(client, ctx, data, opts, messageChan)
 	}
 
 	message := <-messageChan
@@ -95,14 +95,14 @@ func (g *GeminiService) GenerateCommitMessage(
 }
 
 // analyzeToChannel performs the actual AI analysis and sends result to channel
-func (g *GeminiService) analyzeToChannel(
-	client *genai.Client,
+func (a *AIService) analyzeToChannel(
+	client *openai.Client,
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
 	messageChan chan string,
 ) {
-	message, err := g.AnalyzeChanges(
+	message, err := a.AnalyzeChanges(
 		client,
 		ctx,
 		data.Diff,
@@ -120,7 +120,7 @@ func (g *GeminiService) analyzeToChannel(
 	}
 }
 
-func (g *GeminiService) GetUserPrompt(
+func (a *AIService) GetUserPrompt(
 	context *string,
 	diff string,
 	files []string,
@@ -162,8 +162,8 @@ Requirements:
 	return prompt, nil
 }
 
-func (g *GeminiService) AnalyzeChanges(
-	geminiClient *genai.Client,
+func (a *AIService) AnalyzeChanges(
+	openaiClient *openai.Client,
 	ctx context.Context,
 	diff string,
 	userContext *string,
@@ -180,13 +180,13 @@ func (g *GeminiService) AnalyzeChanges(
 		relatedFilesArray = append(relatedFilesArray, fmt.Sprintf("%s/%s", dir, ls))
 	}
 
-	userPrompt, err := g.GetUserPrompt(userContext, diff, relatedFilesArray, maxLength, language, issue)
+	userPrompt, err := a.GetUserPrompt(userContext, diff, relatedFilesArray, maxLength, language, issue)
 	if err != nil {
 		return "", err
 	}
 
 	// Update system prompt to include language and length requirements
-	enhancedSystemPrompt := g.systemPrompt
+	enhancedSystemPrompt := a.systemPrompt
 	if *language != "english" {
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Generate the commit message in %s language.", *language)
 	}
@@ -195,38 +195,31 @@ func (g *GeminiService) AnalyzeChanges(
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Reference issue %s in the commit message.", *issue)
 	}
 
-	temp := float32(0.2)
-	resp, err := geminiClient.Models.GenerateContent(ctx, *modelName, genai.Text(userPrompt), &genai.GenerateContentConfig{
-		Temperature: &temp,
-		SafetySettings: []*genai.SafetySetting{
+	resp, err := openaiClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: *modelName,
+		Messages: []openai.ChatCompletionMessage{
 			{
-				Category:  genai.HarmCategoryHarassment,
-				Threshold: genai.HarmBlockThresholdBlockNone,
+				Role:    openai.ChatMessageRoleSystem,
+				Content: enhancedSystemPrompt,
 			},
 			{
-				Category:  genai.HarmCategoryHateSpeech,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategoryDangerousContent,
-				Threshold: genai.HarmBlockThresholdBlockNone,
-			},
-			{
-				Category:  genai.HarmCategorySexuallyExplicit,
-				Threshold: genai.HarmBlockThresholdBlockNone,
+				Role:    openai.ChatMessageRoleUser,
+				Content: userPrompt,
 			},
 		},
-		SystemInstruction: &genai.Content{
-			Role:  genai.RoleModel,
-			Parts: []*genai.Part{{Text: enhancedSystemPrompt}},
-		},
+		Temperature: 0.2,
+		MaxTokens:   1000,
 	})
 	if err != nil {
 		fmt.Println("Error:", err)
 		return "", nil
 	}
 
-	result := resp.Candidates[0].Content.Parts[0].Text
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no response from AI model")
+	}
+
+	result := resp.Choices[0].Message.Content
 	result = strings.ReplaceAll(result, "```", "")
 	result = strings.TrimSpace(result)
 

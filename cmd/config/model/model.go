@@ -10,8 +10,8 @@ import (
 // KeyCmd represents the key command
 var KeyCmd = &cobra.Command{
 	Use:   "model",
-	Short: "Choose Google Gemini Model",
-	Long:  `Choose Google Gemini Model (Docs: https://ai.google.dev/gemini-api/docs/models/gemini)`,
+	Short: "Choose AI Model",
+	Long:  `Choose AI Model (supports OpenAI, Anthropic, and OpenAI-compatible endpoints)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Println("key called")
 	},

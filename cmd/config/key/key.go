@@ -10,8 +10,8 @@ import (
 // KeyCmd represents the key command
 var KeyCmd = &cobra.Command{
 	Use:   "key",
-	Short: "Manage Google Gemini API key",
-	Long:  `Manage Google Gemini API key`,
+	Short: "Manage AI API key",
+	Long:  `Manage AI API key`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Println("key called")
 	},

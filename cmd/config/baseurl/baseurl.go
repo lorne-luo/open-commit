@@ -10,8 +10,8 @@ import (
 // BaseurlCmd represents the baseurl command
 var BaseurlCmd = &cobra.Command{
 	Use:   "baseurl",
-	Short: "Manage custom base URL for Google Gemini API",
-	Long:  `Manage custom base URL for Google Gemini API`,
+	Short: "Manage custom base URL for AI API",
+	Long:  `Manage custom base URL for AI API`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Println("baseurl called")
 	},

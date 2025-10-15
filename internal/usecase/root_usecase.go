@@ -2,19 +2,17 @@ package usecase
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"sync"
 
 	"github.com/fatih/color"
-	"google.golang.org/genai"
+	"github.com/sashabaranov/go-openai"
 
 	"github.com/tfkhdyt/geminicommit/internal/service"
 )
 
 type RootUsecase struct {
 	gitService         *service.GitService
-	geminiService      *service.GeminiService
+	aiService         *service.AIService
 	interactionService *service.InteractionService
 }
 
@@ -26,12 +24,12 @@ var (
 func NewRootUsecase() *RootUsecase {
 	rootUsecaseOnce.Do(func() {
 		gitService := service.NewGitService()
-		geminiService := service.NewGeminiService()
+		aiService := service.NewAIService()
 		interactionService := service.NewInteractionService()
 
 		rootUsecaseInstance = &RootUsecase{
 			gitService:         gitService,
-			geminiService:      geminiService,
+			aiService:         aiService,
 			interactionService: interactionService,
 		}
 	})
@@ -39,25 +37,13 @@ func NewRootUsecase() *RootUsecase {
 	return rootUsecaseInstance
 }
 
-func (r *RootUsecase) initializeGeminiClient(ctx context.Context, apiKey string, customBaseUrl *string) (*genai.Client, error) {
-	baseUrl := ""
-	if customBaseUrl != nil {
-		baseUrl = *customBaseUrl
+func (r *RootUsecase) initializeAIClient(ctx context.Context, apiKey string, customBaseUrl *string) *openai.Client {
+	config := openai.DefaultConfig(apiKey)
+	if customBaseUrl != nil && *customBaseUrl != "" {
+		config.BaseURL = *customBaseUrl
 	}
-	client, err := genai.NewClient(
-		ctx,
-		&genai.ClientConfig{
-			APIKey:  apiKey,
-			Backend: genai.BackendGeminiAPI,
-			HTTPOptions: genai.HTTPOptions{
-				BaseURL: baseUrl,
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error getting gemini client: %v", err)
-	}
-	return client, nil
+	client := openai.NewClientWithConfig(config)
+	return client
 }
 
 func (r *RootUsecase) RootCommand(
@@ -77,12 +63,8 @@ func (r *RootUsecase) RootCommand(
 	noVerify *bool,
 	customBaseUrl *string,
 ) error {
-	// Initialize Gemini client
-	client, err := r.initializeGeminiClient(ctx, apiKey, customBaseUrl)
-	if err != nil {
-		fmt.Printf("Error getting gemini client: %v", err)
-		os.Exit(1)
-	}
+	// Initialize AI client
+	client := r.initializeAIClient(ctx, apiKey, customBaseUrl)
 
 	// Perform git verifications
 	if err := r.gitService.VerifyGitInstallation(); err != nil {
@@ -125,7 +107,7 @@ func (r *RootUsecase) RootCommand(
 
 	// Main generation loop
 	for {
-		message, err := r.geminiService.GenerateCommitMessage(client, ctx, data, opts)
+		message, err := r.aiService.GenerateCommitMessage(client, ctx, data, opts)
 		if err != nil {
 			return err
 		}

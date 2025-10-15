@@ -71,7 +71,7 @@ func (r *RootHandler) RootCommand(
 			)
 			fmt.Print("\n")
 			color.New(color.Bold).Print("geminicommit config key set ")
-			color.New(color.Italic, color.Bold).Print("api_key\n\n")
+			color.New(color.Italic, color.Bold).Print("your_api_key\n\n")
 			os.Exit(1)
 		}
 

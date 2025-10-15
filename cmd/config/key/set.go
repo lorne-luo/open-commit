@@ -11,8 +11,8 @@ import (
 // setCmd represents the set command
 var setCmd = &cobra.Command{
 	Use:   "set {api_key}",
-	Short: "Set Google Gemini API key",
-	Long:  `Set Google Gemini API key`,
+	Short: "Set AI API key",
+	Long:  `Set AI API key`,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := args[0]
 		viper.Set("api.key", apiKey)

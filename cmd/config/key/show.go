@@ -13,8 +13,8 @@ import (
 // showCmd represents the set command
 var showCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show currently used Google Gemini API key",
-	Long:  `Show currently used Google Gemini API key`,
+	Short: "Show currently used AI API key",
+	Long:  `Show currently used AI API key`,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := viper.GetString("api.key")
 		fmt.Println(apiKey)
