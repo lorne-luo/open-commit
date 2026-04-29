@@ -18,9 +18,9 @@ var getCmd = &cobra.Command{
 	Long: `Get a configuration value.
 
 [api]
-  api.key             - Gemini API key
-  api.model           - Gemini model name
-  api.baseurl         - Custom base URL for Gemini API
+  api.key             - AI provider API key
+  api.model           - AI provider model name
+  api.baseurl         - Custom base URL for AI provider API
 
 [commit]
   commit.language     - Language for commit messages
@@ -37,8 +37,8 @@ var getCmd = &cobra.Command{
   behavior.no_verify   - Skip git commit-msg hook verification
 
 Example:
-  gmc config get commit.language
-  gmc config get api.model`,
+  opencommit config get commit.language
+  opencommit config get api.model`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		key := args[0]
@@ -46,7 +46,7 @@ Example:
 		_, valid := ValidConfigKeys[key]
 		if !valid {
 			fmt.Printf("Error: unknown config key '%s'\n", key)
-			fmt.Println("Run 'gmc config get --help' to see available keys")
+			fmt.Println("Run 'opencommit config get --help' to see available keys")
 			os.Exit(1)
 		}
 

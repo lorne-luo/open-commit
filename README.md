@@ -30,7 +30,7 @@
 
 ```sh
 # 1. Install (Go required)
-go install github.com/lorne-luo/opencommit@latest
+go install github.com/lorne-luo/open-commit@latest
 
 # 2. Get your AI API key
 #    OpenAI: https://platform.openai.com/api-keys
@@ -56,8 +56,8 @@ opencommit
 
 - Go 1.24+ (for `go install`)
 - Git
-- Gemini API key from Google AI Studio
-- GitHub CLI (`gh`) for `gmc pr`
+- API key for your selected AI provider
+- GitHub CLI (`gh`) for `opencommit pr`
 
 ---
 
@@ -82,28 +82,15 @@ opencommit
     ```
 
   ```sh
-  go install github.com/lorne-luo/opencommit@latest
+  go install github.com/lorne-luo/open-commit@latest
   ```
 
 - **Standalone Binary:**
-  Download from the [releases page](https://github.com/lorne-luo/opencommit/releases) and move to a directory in your `PATH`:
+  Download from the [releases page](https://github.com/lorne-luo/open-commit/releases) and move to a directory in your `PATH`:
 
   - Linux: `$HOME/.local/bin/` or `/usr/local/bin/`
   - Windows: `%LocalAppData%\Programs\`
   - macOS: `/usr/local/bin/`
-
-- **Arch Linux (AUR):**
-
-  ```sh
-  yay -S geminicommit-bin
-  ```
-
-- **Fedora (Copr):**
-
-  ```sh
-  sudo dnf copr enable tfkhdyt/geminicommit
-  sudo dnf install geminicommit
-  ```
 
 - **NixOS:**
 
@@ -160,9 +147,9 @@ All configuration is stored in `~/.config/opencommit/config.toml` (on macOS: `~/
 
 ```text
 [api]
-api.key             - Gemini API key
-api.model           - Gemini model name (default: gemini-2.5-flash)
-api.baseurl         - Custom base URL for Gemini API
+api.key             - AI provider API key
+api.model           - AI model name (default: gpt-3.5-turbo)
+api.baseurl         - Custom base URL for OpenAI-compatible APIs
 
 [commit]
 commit.language     - Language for commit messages (default: english)

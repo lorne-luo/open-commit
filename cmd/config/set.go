@@ -39,9 +39,9 @@ var setCmd = &cobra.Command{
 	Long: `Set a configuration value.
 
 [api]
-  api.key             - Gemini API key
-  api.model           - Gemini model name (default: gemini-2.5-flash)
-  api.baseurl         - Custom base URL for Gemini API
+  api.key             - AI provider API key
+  api.model           - AI provider model name (default: gpt-3.5-turbo)
+  api.baseurl         - Custom base URL for AI provider API
 
 [commit]
   commit.language     - Language for commit messages (default: english)
@@ -58,9 +58,9 @@ var setCmd = &cobra.Command{
   behavior.no_verify   - Skip git commit-msg hook verification (default: false)
 
 Example:
-  gmc config set commit.language korean
-  gmc config set commit.max_length 100
-  gmc config set behavior.push true`,
+  opencommit config set commit.language korean
+  opencommit config set commit.max_length 100
+  opencommit config set behavior.push true`,
 	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		key := args[0]
@@ -69,7 +69,7 @@ Example:
 		keyType, valid := ValidConfigKeys[key]
 		if !valid {
 			fmt.Printf("Error: unknown config key '%s'\n", key)
-			fmt.Println("Run 'gmc config set --help' to see available keys")
+			fmt.Println("Run 'opencommit config set --help' to see available keys")
 			os.Exit(1)
 		}
 

@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/lorne-luo/opencommit/cmd/config"
-	"github.com/lorne-luo/opencommit/internal/delivery/cli/handler"
-	"github.com/lorne-luo/opencommit/internal/service"
+	"github.com/lorne-luo/open-commit/cmd/config"
+	"github.com/lorne-luo/open-commit/internal/delivery/cli/handler"
+	"github.com/lorne-luo/open-commit/internal/service"
 )
 
 var (
@@ -41,7 +41,7 @@ var RootCmd = &cobra.Command{
 	Use:     "opencommit",
 	Short:   "CLI that writes your git commit messages for you with AI",
 	Long:    "CLI that writes your git commit messages for you with AI",
-	Version: "0.7.0",
+	Version: "3.0.0",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		applyConfigDefaults(cmd)
 	},

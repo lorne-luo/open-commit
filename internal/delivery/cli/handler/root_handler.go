@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/lorne-luo/opencommit/internal/service"
-	"github.com/lorne-luo/opencommit/internal/usecase"
+	"github.com/lorne-luo/open-commit/internal/service"
+	"github.com/lorne-luo/open-commit/internal/usecase"
 )
 
 type RootHandler struct {

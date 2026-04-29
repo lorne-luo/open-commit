@@ -1,4 +1,4 @@
-module github.com/lorne-luo/opencommit
+module github.com/lorne-luo/open-commit
 
 go 1.24.2
 
