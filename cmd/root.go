@@ -42,7 +42,7 @@ var RootCmd = &cobra.Command{
 	Use:     "opencommit",
 	Short:   "CLI that writes your git commit messages for you with AI",
 	Long:    "CLI that writes your git commit messages for you with AI",
-	Version: "3.0.0",
+	Version: "3.1.0",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		applyConfigDefaults(cmd)
 	},
