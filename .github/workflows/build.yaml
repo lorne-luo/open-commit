@@ -7,7 +7,24 @@ permissions:
   contents: write
   packages: write
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        id: create
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
   release-matrix:
+    needs: create-release
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -30,6 +47,8 @@ jobs:
           goarch: ${{ matrix.goarch }}
           binary_name: opencommit
           ldflags: "-w -s"
-          # executable_compression: upx
           md5sum: FALSE
           sha256sum: TRUE
+          release_tag: ${{ github.ref_name }}
+          overwrite: TRUE
+          extra_files: README.md LICENSE
