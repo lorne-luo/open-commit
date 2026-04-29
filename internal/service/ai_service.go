@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -75,6 +76,11 @@ func NewAIService() *AIService {
 	return aiService
 }
 
+type analyzeResult struct {
+	message string
+	err     error
+}
+
 // GenerateCommitMessage creates a commit message using AI analysis with UI feedback
 func (a *AIService) GenerateCommitMessage(
 	providers []ProviderConfig,
@@ -82,28 +88,33 @@ func (a *AIService) GenerateCommitMessage(
 	data *PreCommitData,
 	opts *CommitOptions,
 ) (string, error) {
-	messageChan := make(chan string, 1)
+	resultChan := make(chan analyzeResult, 1)
 
 	if !*opts.Quiet {
 		if err := spinner.New().
 			Title(fmt.Sprintf("AI is analyzing your changes. (Model: %s)", *opts.Model)).
 			Action(func() {
-				a.analyzeToChannel(providers, ctx, data, opts, messageChan)
+				a.analyzeToChannel(providers, ctx, data, opts, resultChan)
 			}).
 			Run(); err != nil {
 			return "", err
 		}
 	} else {
-		a.analyzeToChannel(providers, ctx, data, opts, messageChan)
+		a.analyzeToChannel(providers, ctx, data, opts, resultChan)
 	}
 
-	message := <-messageChan
+	res := <-resultChan
+	if res.err != nil {
+		color.New(color.FgRed).Fprintf(os.Stderr, "AI request failed: %v\n", res.err)
+		return "", res.err
+	}
+
 	if !*opts.Quiet {
 		underline := color.New(color.Underline)
 		underline.Println("\nChanges analyzed!")
 	}
 
-	message = strings.TrimSpace(message)
+	message := strings.TrimSpace(res.message)
 	if message == "" {
 		return "", fmt.Errorf("no commit messages were generated. try again")
 	}
@@ -117,7 +128,7 @@ func (a *AIService) analyzeToChannel(
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
-	messageChan chan string,
+	resultChan chan analyzeResult,
 ) {
 	message, err := a.AnalyzeChanges(
 		providers,
@@ -129,11 +140,7 @@ func (a *AIService) analyzeToChannel(
 		opts.Language,
 		&data.Issue,
 	)
-	if err != nil {
-		messageChan <- ""
-	} else {
-		messageChan <- message
-	}
+	resultChan <- analyzeResult{message: message, err: err}
 }
 
 func (a *AIService) GetUserPrompt(

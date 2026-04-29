@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/charmbracelet/huh/spinner"
@@ -193,23 +194,23 @@ func (r *RootUsecase) handleAutoFlow(
 
 	var selectedFiles []string
 	var commitMessage string
-	var err error
+	var aiErr error
 
 	if !*opts.Quiet {
-		err = spinner.New().
+		if spinErr := spinner.New().
 			Title(fmt.Sprintf("AI is analyzing your changes. (Model: %s)", *opts.Model)).
 			Action(func() {
-				selectedFiles, commitMessage, err = selectFilesAndGenerateCommit()
+				selectedFiles, commitMessage, aiErr = selectFilesAndGenerateCommit()
 			}).
-			Run()
-		if err != nil {
-			return nil, err
+			Run(); spinErr != nil {
+			return nil, spinErr
 		}
 	} else {
-		selectedFiles, commitMessage, err = selectFilesAndGenerateCommit()
-		if err != nil {
-			return nil, err
-		}
+		selectedFiles, commitMessage, aiErr = selectFilesAndGenerateCommit()
+	}
+	if aiErr != nil {
+		color.New(color.FgRed).Fprintf(os.Stderr, "AI request failed: %v\n", aiErr)
+		return nil, aiErr
 	}
 
 	action, confirmedFiles, err := r.interactionService.ConfirmAutoSelectedFiles(selectedFiles)
