@@ -40,6 +40,7 @@ type CommitOptions struct {
 	Language    *string
 	Issue       *string
 	NoVerify    *bool
+	MaxDiffLines *int
 }
 
 // PreCommitData contains data about the changes to be committed
@@ -54,7 +55,6 @@ type PreCommitData struct {
 type SelectFilesAndGenerateCommitOptions struct {
 	UserContext  *string
 	RelatedFiles *map[string]string
-	ModelName    *string
 	MaxLength    *int
 	Language     *string
 	Issue        *string
@@ -77,7 +77,7 @@ func NewAIService() *AIService {
 
 // GenerateCommitMessage creates a commit message using AI analysis with UI feedback
 func (a *AIService) GenerateCommitMessage(
-	client *openai.Client,
+	providers []ProviderConfig,
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
@@ -88,13 +88,13 @@ func (a *AIService) GenerateCommitMessage(
 		if err := spinner.New().
 			Title(fmt.Sprintf("AI is analyzing your changes. (Model: %s)", *opts.Model)).
 			Action(func() {
-				a.analyzeToChannel(client, ctx, data, opts, messageChan)
+				a.analyzeToChannel(providers, ctx, data, opts, messageChan)
 			}).
 			Run(); err != nil {
 			return "", err
 		}
 	} else {
-		a.analyzeToChannel(client, ctx, data, opts, messageChan)
+		a.analyzeToChannel(providers, ctx, data, opts, messageChan)
 	}
 
 	message := <-messageChan
@@ -113,19 +113,18 @@ func (a *AIService) GenerateCommitMessage(
 
 // analyzeToChannel performs the actual AI analysis and sends result to channel
 func (a *AIService) analyzeToChannel(
-	client *openai.Client,
+	providers []ProviderConfig,
 	ctx context.Context,
 	data *PreCommitData,
 	opts *CommitOptions,
 	messageChan chan string,
 ) {
 	message, err := a.AnalyzeChanges(
-		client,
+		providers,
 		ctx,
 		data.Diff,
 		opts.UserContext,
 		&data.RelatedFiles,
-		opts.Model,
 		opts.MaxLength,
 		opts.Language,
 		&data.Issue,
@@ -188,8 +187,9 @@ func formatRelatedFiles(dirToFiles map[string]string) []string {
 	return relatedFilesArray
 }
 
-// chatComplete calls the OpenAI chat completion API with retry and returns the trimmed text.
-func chatComplete(
+// chatCompleteOnce calls the OpenAI chat completion API on a single client with
+// internal retry. It is the per-provider primitive used by chatCompleteFallback.
+func chatCompleteOnce(
 	client *openai.Client,
 	ctx context.Context,
 	model string,
@@ -235,12 +235,11 @@ func chatComplete(
 }
 
 func (a *AIService) AnalyzeChanges(
-	openaiClient *openai.Client,
+	providers []ProviderConfig,
 	ctx context.Context,
 	diff string,
 	userContext *string,
 	relatedFiles *map[string]string,
-	modelName *string,
 	maxLength *int,
 	language *string,
 	issue *string,
@@ -261,7 +260,7 @@ func (a *AIService) AnalyzeChanges(
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Reference issue %s in the commit message.", *issue)
 	}
 
-	result, err := chatComplete(openaiClient, ctx, *modelName, enhancedSystemPrompt, userPrompt)
+	result, err := chatCompleteFallback(ctx, providers, enhancedSystemPrompt, userPrompt)
 	if err != nil {
 		return "", err
 	}
@@ -274,11 +273,10 @@ func (a *AIService) AnalyzeChanges(
 
 // SelectFilesUsingAI lets the AI determine which files to stage based on the diff and context
 func (a *AIService) SelectFilesUsingAI(
-	openaiClient *openai.Client,
+	providers []ProviderConfig,
 	ctx context.Context,
 	diff string,
 	userContext *string,
-	modelName *string,
 ) ([]string, error) {
 	prompt := fmt.Sprintf(
 		`%s
@@ -288,7 +286,7 @@ Here's the code diff:
 		diff,
 	)
 
-	result, err := chatComplete(openaiClient, ctx, *modelName, fileSelectionPrompt, prompt)
+	result, err := chatCompleteFallback(ctx, providers, fileSelectionPrompt, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -339,16 +337,13 @@ Here's the code diff:
 
 // SelectFilesAndGenerateCommit combines file selection and commit message generation in a single AI request
 func (a *AIService) SelectFilesAndGenerateCommit(
-	openaiClient *openai.Client,
+	providers []ProviderConfig,
 	ctx context.Context,
 	diff string,
 	opts *SelectFilesAndGenerateCommitOptions,
 ) ([]string, string, error) {
 	if opts == nil {
 		return nil, "", fmt.Errorf("options cannot be nil")
-	}
-	if opts.ModelName == nil {
-		return nil, "", fmt.Errorf("ModelName cannot be nil")
 	}
 	if opts.MaxLength == nil {
 		return nil, "", fmt.Errorf("MaxLength cannot be nil")
@@ -397,7 +392,7 @@ Requirements:
 		enhancedSystemPrompt += fmt.Sprintf("\n\nIMPORTANT: Reference issue %s in the commit message.", *opts.Issue)
 	}
 
-	result, err := chatComplete(openaiClient, ctx, *opts.ModelName, enhancedSystemPrompt, prompt)
+	result, err := chatCompleteFallback(ctx, providers, enhancedSystemPrompt, prompt)
 	if err != nil {
 		return nil, "", err
 	}

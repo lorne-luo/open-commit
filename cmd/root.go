@@ -33,6 +33,7 @@ var (
 	issue         string
 	noVerify      = false
 	customBaseUrl string
+	maxDiffLines  = service.DefaultMaxDiffLines
 	rootHandler   = handler.NewRootHandler()
 )
 
@@ -63,6 +64,7 @@ var RootCmd = &cobra.Command{
 		&issue,
 		&noVerify,
 		&customBaseUrl,
+		&maxDiffLines,
 	),
 }
 
@@ -113,6 +115,8 @@ func init() {
 		BoolVarP(&noVerify, "no-verify", "", noVerify, "skip git commit-msg hook verification")
 	RootCmd.Flags().
 		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for AI API")
+	RootCmd.Flags().
+		IntVarP(&maxDiffLines, "max-diff-lines", "", maxDiffLines, "truncate per-file diff to N lines to save tokens (0 disables)")
 
 	// Bind flags to viper config keys
 	// [api]
@@ -121,6 +125,7 @@ func init() {
 	// [commit]
 	viper.BindPFlag("commit.language", RootCmd.Flags().Lookup("language"))
 	viper.BindPFlag("commit.max_length", RootCmd.Flags().Lookup("max-length"))
+	viper.BindPFlag("commit.max_diff_lines", RootCmd.Flags().Lookup("max-diff-lines"))
 	// [behavior]
 	viper.BindPFlag("behavior.stage_all", RootCmd.Flags().Lookup("all"))
 	viper.BindPFlag("behavior.auto_select", RootCmd.Flags().Lookup("auto"))
@@ -149,6 +154,9 @@ func applyConfigDefaults(cmd *cobra.Command) {
 	}
 	if !flags.Changed("max-length") && viper.IsSet("commit.max_length") {
 		maxLength = viper.GetInt("commit.max_length")
+	}
+	if !flags.Changed("max-diff-lines") && viper.IsSet("commit.max_diff_lines") {
+		maxDiffLines = viper.GetInt("commit.max_diff_lines")
 	}
 	// [behavior]
 	if !flags.Changed("all") && viper.IsSet("behavior.stage_all") {

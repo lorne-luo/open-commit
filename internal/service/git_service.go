@@ -29,6 +29,53 @@ func NewGitService() *GitService {
 	return instance
 }
 
+// TruncateLargeDiffs splits a multi-file diff by `diff --git` headers and
+// truncates each per-file section that exceeds maxLines, replacing the
+// remainder with a single marker line. Pass <= 0 to disable.
+func TruncateLargeDiffs(diff string, maxLines int) string {
+	if maxLines <= 0 || diff == "" {
+		return diff
+	}
+
+	const sep = "diff --git "
+	rest := diff
+	var prefix string
+	if !strings.HasPrefix(rest, sep) {
+		if idx := strings.Index(rest, "\n"+sep); idx >= 0 {
+			prefix = rest[:idx+1]
+			rest = rest[idx+1:]
+		} else {
+			return truncateBlock(diff, maxLines)
+		}
+	}
+
+	parts := strings.Split(rest, sep)
+	var out strings.Builder
+	out.WriteString(prefix)
+	for i, p := range parts {
+		if p == "" {
+			continue
+		}
+		block := sep + p
+		out.WriteString(truncateBlock(block, maxLines))
+		if i < len(parts)-1 && !strings.HasSuffix(block, "\n") {
+			out.WriteString("\n")
+		}
+	}
+	return out.String()
+}
+
+func truncateBlock(block string, maxLines int) string {
+	lines := strings.Split(block, "\n")
+	if len(lines) <= maxLines {
+		return block
+	}
+	omitted := len(lines) - maxLines
+	kept := lines[:maxLines]
+	kept = append(kept, fmt.Sprintf("... [truncated %d more lines to save tokens]", omitted))
+	return strings.Join(kept, "\n")
+}
+
 func (g *GitService) VerifyGitInstallation() error {
 	if err := exec.Command("git", "--version").Run(); err != nil {
 		return fmt.Errorf("git is not installed. %v", err)
@@ -369,6 +416,17 @@ func (g *GitService) DetectAndPrepareChanges(opts *CommitOptions) (*PreCommitDat
 	}
 
 	files, diff := <-filesChan, <-diffChan
+
+	if opts.MaxDiffLines != nil && *opts.MaxDiffLines > 0 {
+		original := diff
+		diff = TruncateLargeDiffs(diff, *opts.MaxDiffLines)
+		if !*opts.Quiet && diff != original {
+			color.New(color.FgYellow).Printf(
+				"⚠ Diff truncated to %d lines per file to save tokens\n",
+				*opts.MaxDiffLines,
+			)
+		}
+	}
 
 	if len(files) == 0 {
 		if *opts.AutoSelect {

@@ -34,6 +34,7 @@ var prCmd = &cobra.Command{
 		&userContext,
 		&draft,
 		&customBaseUrl,
+		&maxDiffLines,
 	),
 }
 
@@ -68,4 +69,6 @@ func init() {
 		BoolVar(&draft, "draft", draft, "create a draft pull request")
 	prCmd.Flags().
 		StringVarP(&customBaseUrl, "baseurl", "", service.DefaultBaseUrl, "specify custom url for AI API")
+	prCmd.Flags().
+		IntVarP(&maxDiffLines, "max-diff-lines", "", maxDiffLines, "truncate per-file diff to N lines to save tokens (0 disables)")
 }

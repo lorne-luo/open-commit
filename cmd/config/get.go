@@ -21,10 +21,17 @@ var getCmd = &cobra.Command{
   api.key             - AI provider API key
   api.model           - AI provider model name
   api.baseurl         - Custom base URL for AI provider API
+  api.last_success    - Provider used last successfully: 1 or 2
+
+[api2] (optional secondary provider — used when api1 fails)
+  api2.key            - Secondary AI provider API key
+  api2.model          - Secondary AI provider model name
+  api2.baseurl        - Secondary custom base URL for AI provider API
 
 [commit]
   commit.language     - Language for commit messages
-  commit.max_length   - Maximum length of commit message
+  commit.max_length     - Maximum length of commit message
+  commit.max_diff_lines - Truncate per-file diff to N lines to save tokens
 
 [behavior]
   behavior.stage_all   - Stage all changes in tracked files

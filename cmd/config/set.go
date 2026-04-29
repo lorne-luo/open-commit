@@ -15,12 +15,18 @@ import (
 // ValidConfigKeys defines all valid configuration keys and their types
 var ValidConfigKeys = map[string]string{
 	// [api]
-	"api.key":     "string",
-	"api.model":   "string",
-	"api.baseurl": "string",
+	"api.key":          "string",
+	"api.model":        "string",
+	"api.baseurl":      "string",
+	"api.last_success": "int",
+	// [api2] — secondary provider for fallback
+	"api2.key":     "string",
+	"api2.model":   "string",
+	"api2.baseurl": "string",
 	// [commit]
 	"commit.language":   "string",
-	"commit.max_length": "int",
+	"commit.max_length":     "int",
+	"commit.max_diff_lines": "int",
 	// [behavior]
 	"behavior.stage_all":   "bool",
 	"behavior.auto_select": "bool",
@@ -42,10 +48,17 @@ var setCmd = &cobra.Command{
   api.key             - AI provider API key
   api.model           - AI provider model name (default: gpt-3.5-turbo)
   api.baseurl         - Custom base URL for AI provider API
+  api.last_success    - Provider used last successfully: 1 or 2 (managed automatically)
+
+[api2] (optional secondary provider — used when api1 fails)
+  api2.key            - Secondary AI provider API key
+  api2.model          - Secondary AI provider model name
+  api2.baseurl        - Secondary custom base URL for AI provider API
 
 [commit]
   commit.language     - Language for commit messages (default: english)
-  commit.max_length   - Maximum length of commit message (default: 72)
+  commit.max_length     - Maximum length of commit message (default: 72)
+  commit.max_diff_lines - Truncate per-file diff to N lines to save tokens (default: 500, 0 disables)
 
 [behavior]
   behavior.stage_all   - Stage all changes in tracked files (default: false)

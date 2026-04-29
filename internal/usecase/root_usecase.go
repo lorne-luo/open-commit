@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/fatih/color"
-	"github.com/sashabaranov/go-openai"
 
 	"github.com/lorne-luo/open-commit/internal/service"
 )
@@ -39,17 +38,9 @@ func NewRootUsecase() *RootUsecase {
 	return rootUsecaseInstance
 }
 
-func (r *RootUsecase) initializeAIClient(ctx context.Context, apiKey string, customBaseUrl *string) *openai.Client {
-	config := openai.DefaultConfig(apiKey)
-	if customBaseUrl != nil && *customBaseUrl != "" {
-		config.BaseURL = *customBaseUrl
-	}
-	return openai.NewClientWithConfig(config)
-}
-
 func (r *RootUsecase) RootCommand(
 	ctx context.Context,
-	apiKey string,
+	providers []service.ProviderConfig,
 	stageAll *bool,
 	autoSelect *bool,
 	userContext *string,
@@ -63,11 +54,8 @@ func (r *RootUsecase) RootCommand(
 	language *string,
 	issue *string,
 	noVerify *bool,
-	customBaseUrl *string,
+	maxDiffLines *int,
 ) error {
-	// Initialize AI client
-	client := r.initializeAIClient(ctx, apiKey, customBaseUrl)
-
 	// Perform git verifications
 	if err := r.gitService.VerifyGitInstallation(); err != nil {
 		return err
@@ -79,19 +67,20 @@ func (r *RootUsecase) RootCommand(
 
 	// Prepare commit options
 	opts := &service.CommitOptions{
-		StageAll:    stageAll,
-		AutoSelect:  autoSelect,
-		UserContext: userContext,
-		Model:       model,
-		NoConfirm:   noConfirm,
-		Quiet:       quiet,
-		Push:        push,
-		DryRun:      dryRun,
-		ShowDiff:    showDiff,
-		MaxLength:   maxLength,
-		Language:    language,
-		Issue:       issue,
-		NoVerify:    noVerify,
+		StageAll:     stageAll,
+		AutoSelect:   autoSelect,
+		UserContext:  userContext,
+		Model:        model,
+		NoConfirm:    noConfirm,
+		Quiet:        quiet,
+		Push:         push,
+		DryRun:       dryRun,
+		ShowDiff:     showDiff,
+		MaxLength:    maxLength,
+		Language:     language,
+		Issue:        issue,
+		NoVerify:     noVerify,
+		MaxDiffLines: maxDiffLines,
 	}
 
 	// Detect and prepare changes
@@ -114,7 +103,7 @@ func (r *RootUsecase) RootCommand(
 	var initialCommitMessage string
 	if *opts.AutoSelect {
 		// Auto flow: Select files with AI and generate commit message in one request
-		autoResult, err := r.handleAutoFlow(client, ctx, data, opts)
+		autoResult, err := r.handleAutoFlow(providers, ctx, data, opts)
 		if err != nil {
 			return err
 		}
@@ -136,7 +125,7 @@ func (r *RootUsecase) RootCommand(
 	for {
 		if message == "" {
 			var err error
-			message, err = r.aiService.GenerateCommitMessage(client, ctx, data, opts)
+			message, err = r.aiService.GenerateCommitMessage(providers, ctx, data, opts)
 			if err != nil {
 				return err
 			}
@@ -174,7 +163,7 @@ type AutoFlowResult struct {
 
 // handleAutoFlow implements the complete auto flow as per the flowchart
 func (r *RootUsecase) handleAutoFlow(
-	client *openai.Client,
+	providers []service.ProviderConfig,
 	ctx context.Context,
 	data *service.PreCommitData,
 	opts *service.CommitOptions,
@@ -183,13 +172,12 @@ func (r *RootUsecase) handleAutoFlow(
 		selectOpts := &service.SelectFilesAndGenerateCommitOptions{
 			UserContext:  opts.UserContext,
 			RelatedFiles: &data.RelatedFiles,
-			ModelName:    opts.Model,
 			MaxLength:    opts.MaxLength,
 			Language:     opts.Language,
 			Issue:        &data.Issue,
 		}
 		selectedFiles, commitMessage, err := r.aiService.SelectFilesAndGenerateCommit(
-			client,
+			providers,
 			ctx,
 			data.Diff,
 			selectOpts,

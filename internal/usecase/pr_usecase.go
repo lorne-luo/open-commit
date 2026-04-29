@@ -8,14 +8,13 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/sashabaranov/go-openai"
 
 	"github.com/lorne-luo/open-commit/internal/service"
 )
 
 type PRUsecase struct {
 	gitService         *service.GitService
-	aiService         *service.AIService
+	aiService          *service.AIService
 	interactionService *service.InteractionService
 }
 
@@ -32,7 +31,7 @@ func NewPRUsecase() *PRUsecase {
 
 		prUsecaseInstance = &PRUsecase{
 			gitService:         gitService,
-			aiService:         aiService,
+			aiService:          aiService,
 			interactionService: interactionService,
 		}
 	})
@@ -40,22 +39,9 @@ func NewPRUsecase() *PRUsecase {
 	return prUsecaseInstance
 }
 
-func (p *PRUsecase) initializeAIClient(
-	ctx context.Context,
-	apiKey string,
-	customBaseUrl *string,
-) *openai.Client {
-	config := openai.DefaultConfig(apiKey)
-	if customBaseUrl != nil && *customBaseUrl != "" {
-		config.BaseURL = *customBaseUrl
-	}
-	client := openai.NewClientWithConfig(config)
-	return client
-}
-
 func (p *PRUsecase) PRCommand(
 	ctx context.Context,
-	apiKey string,
+	providers []service.ProviderConfig,
 	model *string,
 	noConfirm *bool,
 	quiet *bool,
@@ -65,10 +51,8 @@ func (p *PRUsecase) PRCommand(
 	language *string,
 	userContext *string,
 	draft *bool,
-	customBaseUrl *string,
+	maxDiffLines *int,
 ) error {
-	client := p.initializeAIClient(ctx, apiKey, customBaseUrl)
-
 	if err := p.gitService.VerifyGitInstallation(); err != nil {
 		return err
 	}
@@ -93,12 +77,23 @@ func (p *PRUsecase) PRCommand(
 		return err
 	}
 
+	if maxDiffLines != nil && *maxDiffLines > 0 {
+		original := data.Diff
+		data.Diff = service.TruncateLargeDiffs(data.Diff, *maxDiffLines)
+		if !*quiet && data.Diff != original {
+			color.New(color.FgYellow).Printf(
+				"⚠ Diff truncated to %d lines per file to save tokens\n",
+				*maxDiffLines,
+			)
+		}
+	}
+
 	if *opts.ShowDiff && !*opts.Quiet {
 		p.interactionService.DisplayDiff(data.Diff)
 	}
 
 	for {
-		message, err := p.aiService.GenerateCommitMessage(client, ctx, data, opts)
+		message, err := p.aiService.GenerateCommitMessage(providers, ctx, data, opts)
 		if err != nil {
 			return err
 		}

@@ -14,6 +14,13 @@ import (
 	"github.com/lorne-luo/open-commit/internal/usecase"
 )
 
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 type RootHandler struct {
 	useCase *usecase.RootUsecase
 }
@@ -49,34 +56,53 @@ func (r *RootHandler) RootCommand(
 	issue *string,
 	noVerify *bool,
 	customBaseUrl *string,
+	maxDiffLines *int,
 ) func(*cobra.Command, []string) {
 	return func(_ *cobra.Command, _ []string) {
-		modelFromConfig := viper.GetString("api.model")
-		if modelFromConfig != "" && *model == service.DefaultModel {
-			*model = modelFromConfig
-		}
-
-		baseUrlFromConfig := viper.GetString("api.baseurl")
-		if baseUrlFromConfig != "" && *customBaseUrl == service.DefaultBaseUrl {
-			*customBaseUrl = baseUrlFromConfig
-		}
-
 		if *quiet && !*noConfirm {
 			*quiet = false
 		}
 
-		apiKey := viper.GetString("api.key")
-		if apiKey == "" {
+		// applyConfigDefaults has already merged config + CLI flags into
+		// `*model` and `*customBaseUrl`, so they are the resolved primary values.
+		primary := service.ProviderConfig{
+			Key:     viper.GetString("api.key"),
+			BaseURL: derefString(customBaseUrl),
+			Model:   derefString(model),
+		}
+		providers := service.BuildProviders(primary)
+
+		if len(providers) == 0 {
 			fmt.Println(
 				"Error: API key is still empty, run this command to set your API key",
 			)
 			fmt.Print("\n")
-			color.New(color.Bold).Print("opencommit config key set ")
+			color.New(color.Bold).Print("opencommit config set api.key ")
 			color.New(color.Italic, color.Bold).Print("your_api_key\n\n")
 			os.Exit(1)
 		}
 
-		err := r.useCase.RootCommand(ctx, apiKey, stageAll, autoSelect, userContext, model, noConfirm, quiet, push, dryRun, showDiff, maxLength, language, issue, noVerify, customBaseUrl)
+		// Reflect the resolved primary model back to the caller (for spinner display).
+		*model = providers[0].Model
+
+		err := r.useCase.RootCommand(
+			ctx,
+			providers,
+			stageAll,
+			autoSelect,
+			userContext,
+			model,
+			noConfirm,
+			quiet,
+			push,
+			dryRun,
+			showDiff,
+			maxLength,
+			language,
+			issue,
+			noVerify,
+			maxDiffLines,
+		)
 		cobra.CheckErr(err)
 	}
 }
