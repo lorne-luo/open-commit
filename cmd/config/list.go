@@ -16,6 +16,9 @@ var listCmd = &cobra.Command{
 	Short: "List all configuration values",
 	Long:  `List all configuration values`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if cf := viper.ConfigFileUsed(); cf != "" {
+			fmt.Printf("Config file: %s\n\n", cf)
+		}
 		settings := viper.AllSettings()
 		printSettings(settings, "")
 	},

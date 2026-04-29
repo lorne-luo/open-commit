@@ -1,54 +1,21 @@
-[![Support Palestine](https://raw.githubusercontent.com/Safouene1/support-palestine-banner/master/banner-project.svg)](https://github.com/Safouene1/support-palestine-banner)
-
 # opencommit
 
 **AI-Powered, Conventional Commit Messages with OpenAI-compatible APIs**
 
-![Preview](./assets/Screenshot_20241112_103154.png)
-
-**opencommit** helps you write clear, conventional, and meaningful Git commit messages automatically using OpenAI-compatible AI providers. Save time, improve your commit history, and focus on what matters—your code.
+opencommit helps you write clear, conventional, and meaningful Git commit messages automatically using OpenAI-compatible AI providers. Save time, improve your commit history, and focus on what matters—your code.
 
 ---
 
 ## ✨ Features
 
-- **AI-Generated Commit Messages:** Let AI analyze your staged changes and suggest concise, descriptive commit messages.
-- **AI-Generated Pull Requests:** Use `opencommit pr` to push your branch and open a GitHub pull request with an AI-generated conventional title (and body).
-- **Customizable Output:** Tailor the message style and structure to fit your workflow.
-- **Conventional Commits:** Ensures messages follow best practices for readability and automation.
-- **Cross-Platform:** Works on Linux, Windows, and macOS.
-- **Open Source:** Free to use and contribute.
-- **Automatic Push:** Push committed changes to remote repository with `--push` flag.
-- **Advanced Customization:** Fine-tune commit messages with various flags and options.
-- **Smart Issue Detection:** Automatically detects and references issue numbers from branch names.
-- **Multi-Provider Support:** Works with OpenAI, Anthropic, and any OpenAI-compatible API endpoints.
-- **Custom API Endpoints:** Configure custom base URLs for any AI provider.
-
----
-
-## 🚀 Quickstart
-
-```sh
-# 1. Install (Go required)
-go install github.com/lorne-luo/open-commit@latest
-
-# 2. Get your AI API key
-#    OpenAI: https://platform.openai.com/api-keys
-#    Anthropic: https://console.anthropic.com/
-
-# 3. Configure your API key
-opencommit config set api.key <your-api-key>
-
-# 4. (Optional) Configure model and base URL
-opencommit config set api.model gpt-4o            # optional: change model
-opencommit config set api.baseurl https://your-proxy   # optional: custom endpoint
-
-# 5. Stage your changes
-git add <file>
-
-# 6. Generate and commit
-opencommit
-```
+- **AI-Generated Commit Messages:** Analyzes staged changes and suggests concise, descriptive messages.
+- **AI-Generated Pull Requests:** `opencommit pr` pushes your branch and opens a GitHub PR with an AI-generated title and body.
+- **Conventional Commits:** Follows best practices for readability and automation.
+- **Multi-Provider Support:** Works with OpenAI, Anthropic, and any OpenAI-compatible endpoint (including local models like Ollama).
+- **Customizable Output:** Tune message style, language, and length to fit your workflow.
+- **Smart Issue Detection:** Detects and references issue numbers from branch names.
+- **Automatic Push:** Push committed changes with `--push`.
+- **Cross-Platform:** Linux, macOS, and Windows.
 
 ---
 
@@ -56,252 +23,201 @@ opencommit
 
 - Go 1.24+ (for `go install`)
 - Git
-- API key for your selected AI provider
-- GitHub CLI (`gh`) for `opencommit pr`
+- API key for your chosen AI provider
+- GitHub CLI (`gh`) — only for `opencommit pr`
+
+---
+
+## 🚀 Quickstart
+
+```sh
+# 1. Install
+go install github.com/lorne-luo/open-commit@latest
+
+# 2. Configure your API key
+opencommit config set api.key <your-api-key>
+
+# 3. (Optional) Choose a model and/or custom endpoint
+opencommit config set api.model gpt-4o
+opencommit config set api.baseurl https://your-proxy
+
+# 4. Stage and commit
+git add <file>
+opencommit
+```
 
 ---
 
 ## 🛠️ Installation
 
-- **From Source:**
+### From Source
 
-  Add To Path:
+```sh
+go install github.com/lorne-luo/open-commit@latest
+```
 
-  - **Zshrc:**
+Make sure `$HOME/go/bin` is on your `PATH`:
 
-    ```sh
-    echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.zshrc
-    source ~/.zshrc
-    ```
+```sh
+# Zsh
+echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.zshrc && source ~/.zshrc
 
-  - **Bashrc:**
+# Bash
+echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.bashrc && source ~/.bashrc
+```
 
-    ```sh
-    echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.bashrc
-    source ~/.bashrc
-    ```
+### Standalone Binary
 
-  ```sh
-  go install github.com/lorne-luo/open-commit@latest
-  ```
+Download from the [releases page](https://github.com/lorne-luo/open-commit/releases) and place in your `PATH`:
 
-- **Standalone Binary:**
-  Download from the [releases page](https://github.com/lorne-luo/open-commit/releases) and move to a directory in your `PATH`:
+- Linux: `$HOME/.local/bin/` or `/usr/local/bin/`
+- macOS: `/usr/local/bin/`
+- Windows: `%LocalAppData%\Programs\`
 
-  - Linux: `$HOME/.local/bin/` or `/usr/local/bin/`
-  - Windows: `%LocalAppData%\Programs\`
-  - macOS: `/usr/local/bin/`
+### NixOS
 
-- **NixOS:**
-
-  ```nix
-  environment.systemPackages = [
-    pkgs.opencommit
-  ];
-  ```
+```nix
+environment.systemPackages = [ pkgs.opencommit ];
+```
 
 ---
 
 ## ⚙️ Configuration
 
-### Basic Setup
+Get an API key:
 
-1. Get your AI API key:
-   - **OpenAI:** [OpenAI Platform](https://platform.openai.com/api-keys)
-   - **Anthropic:** [Anthropic Console](https://console.anthropic.com/)
-   - **Local models:** No API key needed (just set base URL)
-2. Set your key:
-
-   ```sh
-   opencommit config set api.key <your-api-key>
-   opencommit config get api.key
-   ```
-
-### Advanced Configuration
-
-Configure additional settings using the `opencommit config` command:
+- **OpenAI:** https://platform.openai.com/api-keys
+- **Anthropic:** https://console.anthropic.com/
+- **Local models (Ollama, etc.):** no key needed
 
 ```sh
-# Set or change the AI model (default: gpt-3.5-turbo)
-opencommit config set api.model gpt-4o
-opencommit config get api.model
-
-# Set custom API base URL (OpenAI, Anthropic, or local endpoints)
-opencommit config set api.baseurl https://api.anthropic.com   # Anthropic
-opencommit config set api.baseurl http://localhost:11434      # Local Ollama
-opencommit config get api.baseurl
-
-# Clear custom base URL (revert to default OpenAI)
-opencommit config set api.baseurl ""
-
-# View current API key
+# Set / get / list
+opencommit config set api.key <your-api-key>
 opencommit config get api.key
-
-# List all current configuration values
 opencommit config list
 ```
 
-All configuration is stored in `~/.config/opencommit/config.toml` (on macOS: `~/Library/Application Support/opencommit/config.toml`).
+Config is stored at `~/.config/opencommit/config.toml` (macOS: `~/Library/Application Support/opencommit/config.toml`).
 
-#### Available Configuration Keys
+### Available Keys
 
 ```text
 [api]
-api.key             - AI provider API key
-api.model           - AI model name (default: gpt-3.5-turbo)
-api.baseurl         - Custom base URL for OpenAI-compatible APIs
+api.key             AI provider API key
+api.model           AI model name (default: gpt-3.5-turbo)
+api.baseurl         Custom base URL for OpenAI-compatible APIs
 
 [commit]
-commit.language     - Language for commit messages (default: english)
-commit.max_length   - Maximum length of commit message (default: 72)
+commit.language     Language for commit messages (default: english)
+commit.max_length   Maximum length of commit message (default: 72)
 
 [behavior]
-behavior.stage_all   - Stage all changes in tracked files (default: false)
-behavior.auto_select - Let AI select files and generate commit message (default: false)
-behavior.no_confirm  - Skip confirmation prompt (default: false)
-behavior.quiet       - Suppress output (default: false)
-behavior.push        - Push committed changes to remote (default: false)
-behavior.dry_run     - Run without making changes (default: false)
-behavior.show_diff   - Show diff before committing (default: false)
-behavior.no_verify   - Skip git commit-msg hook verification (default: false)
+behavior.stage_all    Stage all tracked changes (default: false)
+behavior.auto_select  Let AI pick files and message (default: false)
+behavior.no_confirm   Skip confirmation prompt (default: false)
+behavior.quiet        Suppress output (default: false)
+behavior.push         Push to remote after commit (default: false)
+behavior.dry_run      Run without making changes (default: false)
+behavior.show_diff    Show diff before committing (default: false)
+behavior.no_verify    Skip git commit-msg hook (default: false)
 ```
 
-#### Configuration File Format
-
-The configuration file uses TOML format:
+### Config File Format (TOML)
 
 ```toml
 [api]
 key = "your-api-key"
 model = "gpt-3.5-turbo"
-baseurl = "https://api.anthropic.com"  # optional - for Anthropic, Ollama, etc.
+baseurl = "https://api.anthropic.com"  # optional
 ```
 
-#### Multi-Provider Examples
+### Multi-Provider Examples
 
-**OpenAI:**
+**OpenAI** (default endpoint):
+
 ```sh
-opencommit config key set sk-your-openai-key
-opencommit config model set gpt-4o
-# No baseurl needed (uses default Openai endpoint)
+opencommit config set api.key sk-your-openai-key
+opencommit config set api.model gpt-4o
 ```
 
 **Anthropic:**
+
 ```sh
-opencommit config key set sk-ant-your-anthropic-key
-opencommit config baseurl set https://api.anthropic.com
-opencommit config model set claude-3-sonnet-20240229
+opencommit config set api.key sk-ant-your-anthropic-key
+opencommit config set api.baseurl https://api.anthropic.com
+opencommit config set api.model claude-3-sonnet-20240229
 ```
 
 **Local Ollama:**
+
 ```sh
-opencommit config baseurl set http://localhost:11434
-opencommit config model set llama3:8b
-# No API key needed for local models
+opencommit config set api.baseurl http://localhost:11434
+opencommit config set api.model llama3:8b
+# No API key needed
 ```
 
 ---
 
 ## 📖 Usage
 
-1. Stage your changes:
+```sh
+git add <file>
+opencommit
+```
 
-   ```sh
-   git add <file>
-   ```
+Review the AI-generated message, accept or edit it, and opencommit will create the commit.
 
-2. Run the CLI to generate a commit:
-
-   ```sh
-   opencommit
-   ```
-
-3. Review and edit the AI-generated message if needed.
-4. opencommit will commit your changes with the generated message.
-
-### Create Pull Requests
-
-Use AI to draft a PR title & body and open a GitHub pull request:
+### Pull Requests
 
 ```sh
-opencommit pr              # opens a ready-for-review PR
+opencommit pr              # push and open a PR
 opencommit pr --draft      # create as draft
 opencommit pr --dry-run    # preview without pushing
 ```
 
-You can combine `--yes -q`, `--show-diff`, `--language`, `--baseurl`, and other flags just like the commit command.
+Combine with `--yes -q`, `--show-diff`, `--language`, `--baseurl`, etc.
 
-### Advanced Usage & Customization
-
-#### Commit Message Customization Flags
+### Common Flags
 
 ```sh
-# Preview commit without making changes
-opencommit --dry-run
-
-# Display the diff before committing
-opencommit --show-diff
-
-# Set maximum commit message length (default: 72 characters)
-opencommit --max-length 50
-
-# Generate commit messages in different languages
-opencommit --language spanish
-opencommit --language french
-
-# Reference specific issue numbers
-opencommit --issue "#123"
-opencommit --issue "JIRA-456"
-
-# Skip git commit-msg hook verification
-opencommit --no-verify
-
-# Push committed changes to remote repository
-opencommit --push
-
-# Use custom API endpoint
-opencommit --baseurl https://your-proxy.example.com
-
-# Use specific AI model
-opencommit --model gpt-4o
+opencommit --dry-run                 # preview without committing
+opencommit --show-diff               # display diff before committing
+opencommit --max-length 50           # message length limit
+opencommit --language spanish        # generate in another language
+opencommit --issue "#123"            # reference an issue
+opencommit --no-verify               # skip commit-msg hook
+opencommit --push                    # push after commit
+opencommit --baseurl https://...     # override endpoint
+opencommit --model gpt-4o            # override model
 ```
 
-#### Auto Issue Detection
+### Auto Issue Detection
 
-opencommit automatically detects issue numbers from branch names using common patterns:
+Issue numbers are detected from branch names:
 
-- `feature-123-description` → references issue #123
-- `fix-456-bug` → references issue #456
-- `#789-feature` → references issue #789
-- `issue-101` → references issue #101
+- `feature-123-description` → `#123`
+- `fix-456-bug` → `#456`
+- `#789-feature` → `#789`
+- `issue-101` → `#101`
 
-#### Combining Options
+### Combining Options
 
 ```sh
-# Comprehensive example: dry run with diff, custom length, and language
 opencommit --dry-run --show-diff --max-length 60 --language spanish
-
-# Production workflow: commit and push with issue reference
 opencommit --issue "#123" --push --no-verify
-
-# Using custom endpoint with specific model
 opencommit --baseurl https://your-proxy.example.com --model gpt-4o
 ```
 
-For more options:
-
-```sh
-opencommit --help
-```
+Run `opencommit --help` for the full list.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to open an issue or submit a pull request.
+Issues and pull requests are welcome.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the GPLv3 License. See the [LICENSE](LICENSE) file for details.
+GPLv3 — see [LICENSE](LICENSE).
