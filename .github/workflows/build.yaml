@@ -23,28 +23,16 @@ jobs:
           draft: false
           prerelease: false
 
-  release-matrix:
+  release-binary:
     needs: create-release
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos:
-          - linux
-          - windows
-          - darwin
-        goarch:
-          - amd64
-          - arm64
-        exclude:
-          - goarch: arm64
-            goos: windows
     steps:
       - uses: actions/checkout@v4
       - uses: wangyoucao577/go-release-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
+          goos: darwin
+          goarch: arm64
           binary_name: opencommit
           ldflags: "-w -s"
           md5sum: FALSE
